@@ -14,12 +14,10 @@ public class Controller {
             get("/test", (req, res) -> "Success !!!");
 
             // the query from the search engine
-            get("/query/:query", (req, res) -> {
+            get("/queries/:query", (req, res) -> {
                 JSONObject obj = new JSONObject();
                 return obj.put("query", req.params(":query"));
             });
-
-
 
         });
 
