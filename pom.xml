@@ -35,6 +35,22 @@
             <version>20160810</version>
         </dependency>
 
+        <!-- dependencies for local jars -->
+        <dependency>
+            <groupId>BioReader_gid</groupId>
+            <artifactId>BioReader_aid</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/java/givenSoftware/BioReader.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>Stemmer_gid</groupId>
+            <artifactId>Stemmer_aid</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/java/givenSoftware/Stemmer.jar</systemPath>
+        </dependency>
+
     </dependencies>
 
 </project>
