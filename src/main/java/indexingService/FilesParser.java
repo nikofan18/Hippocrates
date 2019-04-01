@@ -1,8 +1,9 @@
 package indexingService;
 
+import Configuration.Config;
 import gr.uoc.csd.hy463.NXMLFileReader;
-import java.io.File;
-import java.io.IOException;
+
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,13 +91,40 @@ public class FilesParser {
 
     public static void listFilesForFolder(File folder, FilesParser fp) throws IOException {
 
+        if(folder.listFiles() == null){
+            Config.files.add(folder.getName());
+            fp.parseTags(folder.getAbsolutePath());
+            return;
+        }
+
+        int fileCounter = 0;
+
         for (File fileEntry : folder.listFiles()) {
+
+            if (fileCounter > Config.getNumOfFiles() - 1)
+                return;
+
             if (fileEntry.isDirectory()) {
+                Config.files.add(fileEntry.getName());
                 listFilesForFolder(fileEntry, fp);
             } else {
-                System.out.println(fileEntry.getAbsolutePath());
                 fp.parseTags(fileEntry.getAbsolutePath());
-            } }
+                Config.files.add(fileEntry.getName());
+            }
+            fileCounter++;
+        }
+
+    }
+
+    public static void exportToFile(String str) throws IOException {
+
+        BufferedWriter writer = new BufferedWriter(
+                new FileWriter(Config.getCollectionPath() + "/output.txt", true)  //Set true for append mode
+        );
+
+        writer.newLine();
+        writer.write(str);
+        writer.close();
     }
 
 }

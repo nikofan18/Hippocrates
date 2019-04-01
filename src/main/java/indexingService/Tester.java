@@ -1,5 +1,6 @@
 package indexingService;
 
+import Configuration.Config;
 import gr.uoc.csd.hy463.NXMLFileReader;
 import java.io.File;
 import java.io.IOException;
@@ -14,13 +15,16 @@ public class Tester {
 
     public static void main(String[] args) throws UnsupportedEncodingException, IOException {
         FilesParser fp = new FilesParser();
-        for (int i=0; i<=0; i++){
-            File folder = new File("../../MedicalCollection/"+i);
-            FilesParser.listFilesForFolder(folder, fp);
-        }
+
+        Config.setExtraPath("/0/2635478.nxml"); // delete line for the whole collection
+        File folder = new File(Config.getCollectionPath() + Config.getExtraPath());
+
+        FilesParser.listFilesForFolder(folder, fp);
 
         for (String e:FilesParser.tokenInfo.keySet()) {
-            System.out.println(e+" "+FilesParser.tokenInfo.get(e));
+            FilesParser.exportToFile(e+" "+FilesParser.tokenInfo.get(e));
         }
+
+        System.out.println(Config.files);
     }
 }
