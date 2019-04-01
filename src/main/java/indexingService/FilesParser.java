@@ -101,8 +101,10 @@ public class FilesParser {
 
         for (File fileEntry : folder.listFiles()) {
 
-            if (fileCounter > Config.getNumOfFiles() - 1)
-                return;
+            if (Config.getNumOfFiles() != -1){
+                if (fileCounter > Config.getNumOfFiles() - 1)
+                    return;
+            }
 
             if (fileEntry.isDirectory()) {
                 Config.files.add(fileEntry.getName());

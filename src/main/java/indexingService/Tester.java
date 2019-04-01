@@ -16,9 +16,10 @@ public class Tester {
     public static void main(String[] args) throws UnsupportedEncodingException, IOException {
         FilesParser fp = new FilesParser();
 
-        Config.setExtraPath("/0/2635478.nxml"); // delete line for the whole collection
+        Config.setExtraPath("/0"); // delete line for the whole collection
         File folder = new File(Config.getCollectionPath() + Config.getExtraPath());
 
+        System.out.println("waiting...");
         FilesParser.listFilesForFolder(folder, fp);
 
         for (String e:FilesParser.tokenInfo.keySet()) {

@@ -9,7 +9,7 @@ public class Config {
 
     private static String extraPath;
 
-    private static int numOfFiles = 2;
+    private static int numOfFiles = -1;
 
     public static ArrayList<String> files = new ArrayList<>();
 
