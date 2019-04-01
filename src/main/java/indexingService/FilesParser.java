@@ -11,7 +11,7 @@ import java.util.*;
 
 public class FilesParser {
 
-    public static HashMap<String, HashMap<String, Integer>> tokenInfo;
+    public static HashMap<String, HashMap<String, HashMap<String, Integer>>> tokenInfo;
 
     public FilesParser(){
         tokenInfo = new HashMap<>();
@@ -22,30 +22,34 @@ public class FilesParser {
         return Files.readAllLines(swFile, Charset.forName("UTF-8"));
     }
 
+    private String removePunct(String str){
+        return str.replaceAll("[\\p{Punct}]", "");
+    }
+
     public void parseTags(String path) throws IOException {
         HashMap<String, String> tagPairs =  new HashMap<>();
         File f = new File(path);
         NXMLFileReader xmlFile =  new NXMLFileReader(f);
-        tagPairs.put("title", xmlFile.getTitle());
-        tagPairs.put("pmcid", xmlFile.getPMCID());
-        tagPairs.put("abstract", xmlFile.getAbstr());
-        tagPairs.put("body", xmlFile.getBody());
-        tagPairs.put("journal", xmlFile.getJournal());
-        tagPairs.put("publisher", xmlFile.getPublisher());
+        tagPairs.put("title", removePunct(xmlFile.getTitle()));
+        tagPairs.put("pmcid", removePunct(xmlFile.getPMCID()));
+        tagPairs.put("abstract", removePunct(xmlFile.getAbstr()));
+        tagPairs.put("body", removePunct(xmlFile.getBody()));
+        tagPairs.put("journal", removePunct(xmlFile.getJournal()));
+        tagPairs.put("publisher", removePunct(xmlFile.getPublisher()));
         int counter = 0;
         for(String entry : xmlFile.getAuthors()) {
-            tagPairs.put("authors" + counter++, entry);
+            tagPairs.put("authors" + counter++, removePunct(entry));
         }
         counter = 0;
         for(String entry : xmlFile.getCategories()) {
-            tagPairs.put("categories" + counter++, entry);
+            tagPairs.put("categories" + counter++, removePunct(entry));
         }
-        populateTokenInfo(tagPairs);
+        populateTokenInfo(tagPairs, path);
     }
 
-    private void populateTokenInfo(HashMap<String, String> tagPairs) throws IOException {
+    private void populateTokenInfo(HashMap<String, String> tagPairs, String path) throws IOException {
 
-        String delimiter = "\t\n\r\f :"; // TODO find shmeia stikshs
+        String delimiter = "\t\n\r\f "; // TODO find shmeia stikshs
 
         for(String tagName : tagPairs.keySet()) {
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
@@ -53,15 +57,27 @@ public class FilesParser {
                 String currentToken = tokenizer.nextToken();
                 if (tokenInfo.containsKey(currentToken)) {
                     int newValue;
-                    if(tokenInfo.get(currentToken).containsKey(tagName))
-                        newValue = tokenInfo.get(currentToken).get(tagName) + 1;
-                    else
-                        newValue = 1;
-                    tokenInfo.get(currentToken).put(tagName, newValue);
+                    if(tokenInfo.get(currentToken).containsKey(path)){
+                        if(tokenInfo.get(currentToken).get(path).containsKey(tagName)){
+                            newValue = tokenInfo.get(currentToken).get(path).get(tagName) + 1;
+                            tokenInfo.get(currentToken).get(path).put(tagName, newValue);
+                        }
+                        else if(!tokenInfo.get(currentToken).get(path).containsKey(tagName)){
+                            newValue = 1;
+                            tokenInfo.get(currentToken).get(path).put(tagName, newValue);
+                        }
+                    }
+                    else if(!tokenInfo.get(currentToken).containsKey(path)){
+                        HashMap<String, Integer> m = new HashMap<>();
+                        m.put(tagName, 1);
+                        tokenInfo.get(currentToken).put(path, m);
+                    }
                 } else {
                     HashMap<String, Integer> hm = new HashMap<>();
+                    HashMap<String, HashMap<String, Integer>> h = new HashMap<>();
                     hm.put(tagName, 1);
-                    tokenInfo.put(currentToken, hm);
+                    h.put(path, hm);
+                    tokenInfo.put(currentToken, h);
                 }
             }
         }
@@ -69,5 +85,18 @@ public class FilesParser {
         // TODO make function optional
         tokenInfo.keySet().removeAll(parseStopwords("Stopwords/stopwordsEn.txt"));
         tokenInfo.keySet().removeAll(parseStopwords("Stopwords/stopwordsGr.txt"));
+
     }
+
+    public static void listFilesForFolder(File folder, FilesParser fp) throws IOException {
+
+        for (File fileEntry : folder.listFiles()) {
+            if (fileEntry.isDirectory()) {
+                listFilesForFolder(fileEntry, fp);
+            } else {
+                System.out.println(fileEntry.getAbsolutePath());
+                fp.parseTags(fileEntry.getAbsolutePath());
+            } }
+    }
+
 }
