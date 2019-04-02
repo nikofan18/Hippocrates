@@ -2,6 +2,7 @@ package indexingService;
 
 import Configuration.Config;
 import gr.uoc.csd.hy463.NXMLFileReader;
+import mitos.stemmer.Stemmer;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -12,10 +13,10 @@ import java.util.*;
 
 public class FilesParser {
 
-    public static HashMap<String, HashMap<String, HashMap<String, Integer>>> tokenInfo;
+    public static TreeMap<String, HashMap<String, HashMap<String, Integer>>> tokenInfo;
 
     public FilesParser(){
-        tokenInfo = new HashMap<>();
+        tokenInfo = new TreeMap<>();
     }
 
     private List<String> parseStopwords(String path) throws IOException { // TODO make path manager
@@ -23,61 +24,67 @@ public class FilesParser {
         return Files.readAllLines(swFile, Charset.forName("UTF-8"));
     }
 
-    private String removePunct(String str){
-        return str.replaceAll("[\\p{Punct}]", "");
+    private String doLexicalAnalysis(String str){
+        String result = str.replaceAll("['´῾᾽\"]","");
+        return result.replaceAll("[\\p{Punct}]", " ");
     }
 
     public void parseTags(String path) throws IOException {
         HashMap<String, String> tagPairs =  new HashMap<>();
         File f = new File(path);
         NXMLFileReader xmlFile =  new NXMLFileReader(f);
-        tagPairs.put("title", removePunct(xmlFile.getTitle()));
-        tagPairs.put("pmcid", removePunct(xmlFile.getPMCID()));
-        tagPairs.put("abstract", removePunct(xmlFile.getAbstr()));
-        tagPairs.put("body", removePunct(xmlFile.getBody()));
-        tagPairs.put("journal", removePunct(xmlFile.getJournal()));
-        tagPairs.put("publisher", removePunct(xmlFile.getPublisher()));
+        tagPairs.put("title", doLexicalAnalysis(xmlFile.getTitle()));
+        tagPairs.put("pmcid", doLexicalAnalysis(xmlFile.getPMCID()));
+        tagPairs.put("abstract", doLexicalAnalysis(xmlFile.getAbstr()));
+        tagPairs.put("body", doLexicalAnalysis(xmlFile.getBody()));
+        tagPairs.put("journal", doLexicalAnalysis(xmlFile.getJournal()));
+        tagPairs.put("publisher", doLexicalAnalysis(xmlFile.getPublisher()));
         int counter = 0;
         for(String entry : xmlFile.getAuthors()) {
-            tagPairs.put("authors" + counter++, removePunct(entry));
+            tagPairs.put("authors_" + counter++, doLexicalAnalysis(entry));
         }
         counter = 0;
         for(String entry : xmlFile.getCategories()) {
-            tagPairs.put("categories" + counter++, removePunct(entry));
+            tagPairs.put("categories_" + counter++, doLexicalAnalysis(entry));
         }
         populateTokenInfo(tagPairs, path);
+    }
+
+    private String doStemming(String str) {
+        Stemmer.Initialize();
+        return Stemmer.Stem(str);
     }
 
     private void populateTokenInfo(HashMap<String, String> tagPairs, String path) throws IOException {
 
         String delimiter = "\t\n\r\f "; // TODO find shmeia stikshs
-
+        String fileName = path.substring(path.lastIndexOf("/"));
         for(String tagName : tagPairs.keySet()) {
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
             while (tokenizer.hasMoreTokens()) {
-                String currentToken = tokenizer.nextToken();
+                String currentToken = doStemming(tokenizer.nextToken());
                 if (tokenInfo.containsKey(currentToken)) {
                     int newValue;
-                    if(tokenInfo.get(currentToken).containsKey(path)){
-                        if(tokenInfo.get(currentToken).get(path).containsKey(tagName)){
-                            newValue = tokenInfo.get(currentToken).get(path).get(tagName) + 1;
-                            tokenInfo.get(currentToken).get(path).put(tagName, newValue);
+                    if(tokenInfo.get(currentToken).containsKey(fileName)){
+                        if(tokenInfo.get(currentToken).get(fileName).containsKey(tagName)){
+                            newValue = tokenInfo.get(currentToken).get(fileName).get(tagName) + 1;
+                            tokenInfo.get(currentToken).get(fileName).put(tagName, newValue);
                         }
-                        else if(!tokenInfo.get(currentToken).get(path).containsKey(tagName)){
+                        else if(!tokenInfo.get(currentToken).get(fileName).containsKey(tagName)){
                             newValue = 1;
-                            tokenInfo.get(currentToken).get(path).put(tagName, newValue);
+                            tokenInfo.get(currentToken).get(fileName).put(tagName, newValue);
                         }
                     }
-                    else if(!tokenInfo.get(currentToken).containsKey(path)){
+                    else if(!tokenInfo.get(currentToken).containsKey(fileName)){
                         HashMap<String, Integer> m = new HashMap<>();
                         m.put(tagName, 1);
-                        tokenInfo.get(currentToken).put(path, m);
+                        tokenInfo.get(currentToken).put(fileName, m);
                     }
                 } else {
                     HashMap<String, Integer> hm = new HashMap<>();
                     HashMap<String, HashMap<String, Integer>> h = new HashMap<>();
                     hm.put(tagName, 1);
-                    h.put(path, hm);
+                    h.put(fileName, hm);
                     tokenInfo.put(currentToken, h);
                 }
             }
@@ -118,14 +125,25 @@ public class FilesParser {
 
     }
 
+    public static void createVocabularyFile(String term, Integer df) throws IOException {
+        BufferedWriter writer = new BufferedWriter(
+                new FileWriter(System.getProperty("user.dir") + "/CollectionIndex/VocabularyFile.txt", true)  //Set true for append mode
+        );
+
+        writer.write(term + " " + df);
+        writer.newLine();
+        writer.close();
+    }
+
+    // for testing
     public static void exportToFile(String str) throws IOException {
 
         BufferedWriter writer = new BufferedWriter(
                 new FileWriter(Config.getCollectionPath() + "/output.txt", true)  //Set true for append mode
         );
 
-        writer.newLine();
         writer.write(str);
+        writer.newLine();
         writer.close();
     }
 
