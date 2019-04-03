@@ -1,25 +1,28 @@
-package Configuration;
+package Utilities;
 
 import java.util.ArrayList;
 
-public class Config {
+public class PathManager {
 
-    private static String collectionPath = System.getProperty("user.dir").substring(0,
-            System.getProperty("user.dir").lastIndexOf('/')) + "/MedicalCollection";
+    // Fields
 
-    private static String extraPath;
+    private static String collectionPath = "MedicalCollection"; // Add your own path here
+
+    private static String extraPath = "";
 
     private static int numOfFiles = -1;
 
-    public static ArrayList<String> files = new ArrayList<>();
+    public static ArrayList<String> fileNames = new ArrayList<>();
 
+
+    // Methods
 
     public static String getCollectionPath(){
        return collectionPath;
     }
 
     public static void setCollectionPath(String collectionPath) {
-        Config.collectionPath = collectionPath;
+        PathManager.collectionPath = collectionPath;
     }
 
     public static String getExtraPath() {
@@ -27,11 +30,11 @@ public class Config {
     }
 
     public static void setExtraPath(String extraPath) {
-        Config.extraPath = extraPath;
+        PathManager.extraPath = extraPath;
     }
 
     public static void setNumOfFiles(int numOfFiles) {
-        Config.numOfFiles = numOfFiles;
+        PathManager.numOfFiles = numOfFiles;
     }
 
     public static int getNumOfFiles() {

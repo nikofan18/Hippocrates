@@ -41,14 +41,14 @@
             <artifactId>BioReader_aid</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/java/givenSoftware/BioReader.jar</systemPath>
+            <systemPath>${project.basedir}/src/main/java/LocalJars/BioReader.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>Stemmer_gid</groupId>
             <artifactId>Stemmer_aid</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/java/givenSoftware/Stemmer.jar</systemPath>
+            <systemPath>${project.basedir}/src/main/java/LocalJars/Stemmer.jar</systemPath>
         </dependency>
 
     </dependencies>
