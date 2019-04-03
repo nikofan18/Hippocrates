@@ -6,6 +6,8 @@ public class PathManager {
 
     // Fields
 
+    private static String stopwordsPath = "Stopwords";
+
     private static String collectionPath = "MedicalCollection"; // Add your own path here
 
     private static String extraPath = "";
@@ -16,6 +18,10 @@ public class PathManager {
 
 
     // Methods
+
+    public static String getStopwordsPath() { return stopwordsPath; }
+
+    public static void setStopwordsPath(String stopwordsPath) { PathManager.stopwordsPath = stopwordsPath; }
 
     public static String getCollectionPath(){
        return collectionPath;

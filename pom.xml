@@ -51,6 +51,13 @@
             <systemPath>${project.basedir}/src/main/java/LocalJars/Stemmer.jar</systemPath>
         </dependency>
 
+        <!-- dependency for apache commons -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.0</version>
+        </dependency>
+
     </dependencies>
 
 </project>
