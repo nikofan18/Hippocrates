@@ -6,7 +6,6 @@ import mitos.stemmer.Stemmer;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -65,8 +64,6 @@ public class Indexer {
         computeDocumentVectorLengths();
         new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
         createIndexFiles();
-//        createVocabularyFile();
-//        createDocumentsFile();
         System.out.println("Files Indexed: " + PathManager.fileNames);
     }
 
@@ -221,98 +218,135 @@ public class Indexer {
 
     }
 
+    /*
+     * Produce the index files: VocabularyFile.txt, PostingFile.txt, DocumentsFile.txt
+     */
     private void createIndexFiles() throws IOException {
 
         StringBuilder sb = new StringBuilder(); // To save time and space
 
-        HashMap<String, Integer> docBytes = new HashMap<>();
-        Integer byteSum = 0;
+        HashMap<String, Long> docBytes = new HashMap<>();
 
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
 
         RandomAccessFile voc = null;
-        RandomAccessFile post = null;
-        RandomAccessFile doc = null;
+        voc = new RandomAccessFile(indexDir + "/VocabularyFile.txt", "rw");
+        voc.setLength(0);
 
-//        voc = new RandomAccessFile(indexDir + "/VocabularyFile.txt", "rw");
-//        post = new RandomAccessFile(indexDir + "/PostingFile.txt", "rw");
+        RandomAccessFile post = null;
+        post = new RandomAccessFile(indexDir + "/PostingFile.txt", "rw");
+        post.setLength(0);
+
+        RandomAccessFile doc = null;
         doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
+        doc.setLength(0);
 
         /* Firstly, create the DocumentsFile.txt */
         for(String docId : docInfo.keySet()) {
-            docBytes.put(docId, byteSum);
-
+            docBytes.put(docId, doc.getFilePointer());
             sb.append(docId);
             sb.append(" ");
             sb.append(docInfo.get(docId).getLeft());
             sb.append(" ");
             sb.append(docInfo.get(docId).getRight());
-            sb.append(" ");
             sb.append("\n");
-            doc.writeUTF("akakak" + "akdawd" + "dvvvjvnvnvnvnv\n");
-
-            byteSum += sb.toString().getBytes(StandardCharsets.UTF_8).length;
-
-            sb.setLength(0); // clear string buffer
+            doc.writeUTF(sb.toString());
+            sb.setLength(0);
         }
 
+        /* Then, create the postings and the vocabulary file */
+        for(String term : tokenInfo.keySet()) {
+            sb.append(term);
+            sb.append(" ");
+            sb.append(tokenInfo.get(term).size());
+            sb.append(" ");
+            sb.append(post.getFilePointer());
+            sb.append("\n");
+            voc.writeUTF(sb.toString());
+            sb.setLength(0);
+            for(String docId : tokenInfo.get(term).keySet()) {
+                sb.append(docId);
+                sb.append(" ");
+                sb.append(tokenInfo.get(term).get(docId).getLeft());
+                sb.append(" ");
+                sb.append(docBytes.get(docId));
+                sb.append("\n");
+                post.writeUTF(sb.toString());
+                sb.setLength(0);
+            }
+        }
+
+        // FOR TESTING. TO BE REMOVED
+//        voc.seek(0);
+//        String line = voc.readUTF().replaceAll("\n", "");
+//        String[] arr = line.split(" ");
+//        long p1 = Long.valueOf(arr[2]);
+//
+//        post.seek(p1);
+//        String line2 = post.readUTF().replaceAll("\n", "");
+//        System.out.println(line2);
+//        String[] arr2 = line2.split(" ");
+//        long p2 = Long.valueOf(arr2[2]);
+//        System.out.println(p2);
+//
+//        doc.seek(p2);
+//        String line3 = doc.readUTF();
+//        String[] arr3 = line3.split(" ");
+//        String fullpath = arr3[1];
+//
+//        System.out.println(fullpath);
+
+
+        /* Close files */
+        voc.close();
+        post.close();
         doc.close();
+    }
 
+//    /*
+//     * Create VocabularyFile.txt with each line as a <term, df> pair
+//     */
+//    private void createVocabularyFile() throws IOException {
+//        String fileName = System.getProperty("user.dir") + "/CollectionIndex/VocabularyFile.txt";
+//        BufferedWriter writer = new BufferedWriter(
+//                new FileWriter(fileName, false)
+//        );
 //
-//        for(String term : tokenInfo.keySet()) {
-//
-//
-//
-////            String vocRecord = term + " " + tokenInfo.get(term).size();
-////            voc.writeChars(term); voc.
+//        for (String term : tokenInfo.keySet()) {
+//            writer.write(term + " " + tokenInfo.get(term).size());
+//            writer.newLine();
 //        }
-
-    }
-
-    /*
-     * Create VocabularyFile.txt with each line as a <term, df> pair
-     */
-    private void createVocabularyFile() throws IOException {
-        String fileName = System.getProperty("user.dir") + "/CollectionIndex/VocabularyFile.txt";
-        BufferedWriter writer = new BufferedWriter(
-                new FileWriter(fileName, false)
-        );
-
-        for (String term : tokenInfo.keySet()) {
-            writer.write(term + " " + tokenInfo.get(term).size());
-            writer.newLine();
-        }
-
-        writer.close();
-    }
-
-    /*
-     * Create DocumentsFile.txt with each line as a <docId, docFullPath, docVecLen> triplet
-     */
-    private void createDocumentsFile() throws IOException {
-        String fileName = System.getProperty("user.dir") + "/CollectionIndex/DocumentsFile.txt";
-        BufferedWriter writer = new BufferedWriter(
-                new FileWriter(fileName, false)
-        );
-
-        for(String docId : docInfo.keySet()) {
-            writer.write(docId + " " + docInfo.get(docId).getLeft() + " " + docInfo.get(docId).getRight());
-            writer.newLine();
-        }
-
-        writer.close();
-    }
-
-    // FOR TESTING, TO BE REMOVED
-    public static void exportToFile(String str) throws IOException {
-
-        BufferedWriter writer = new BufferedWriter(
-                new FileWriter(PathManager.getCollectionPath() + "/output.txt", true)  //Set true for append mode
-        );
-
-        writer.write(str);
-        writer.newLine();
-        writer.close();
-    }
+//
+//        writer.close();
+//    }
+//
+//    /*
+//     * Create DocumentsFile.txt with each line as a <docId, docFullPath, docVecLen> triplet
+//     */
+//    private void createDocumentsFile() throws IOException {
+//        String fileName = System.getProperty("user.dir") + "/CollectionIndex/DocumentsFile.txt";
+//        BufferedWriter writer = new BufferedWriter(
+//                new FileWriter(fileName, false)
+//        );
+//
+//        for(String docId : docInfo.keySet()) {
+//            writer.write(docId + " " + docInfo.get(docId).getLeft() + " " + docInfo.get(docId).getRight());
+//            writer.newLine();
+//        }
+//
+//        writer.close();
+//    }
+//
+//    // FOR TESTING, TO BE REMOVED
+//    public static void exportToFile(String str) throws IOException {
+//
+//        BufferedWriter writer = new BufferedWriter(
+//                new FileWriter(PathManager.getCollectionPath() + "/output.txt", true)  //Set true for append mode
+//        );
+//
+//        writer.write(str);
+//        writer.newLine();
+//        writer.close();
+//    }
 
 }
