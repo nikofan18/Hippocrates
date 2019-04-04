@@ -6,6 +6,7 @@ import mitos.stemmer.Stemmer;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -63,8 +64,9 @@ public class Indexer {
         parseRecursively(f);
         computeDocumentVectorLengths();
         new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
-        createVocabularyFile();
-        createDocumentsFile();
+        createIndexFiles();
+//        createVocabularyFile();
+//        createDocumentsFile();
         System.out.println("Files Indexed: " + PathManager.fileNames);
     }
 
@@ -216,6 +218,54 @@ public class Indexer {
 
             fileCounter++;
         }
+
+    }
+
+    private void createIndexFiles() throws IOException {
+
+        StringBuilder sb = new StringBuilder(); // To save time and space
+
+        HashMap<String, Integer> docBytes = new HashMap<>();
+        Integer byteSum = 0;
+
+        String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
+
+        RandomAccessFile voc = null;
+        RandomAccessFile post = null;
+        RandomAccessFile doc = null;
+
+//        voc = new RandomAccessFile(indexDir + "/VocabularyFile.txt", "rw");
+//        post = new RandomAccessFile(indexDir + "/PostingFile.txt", "rw");
+        doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
+
+        /* Firstly, create the DocumentsFile.txt */
+        for(String docId : docInfo.keySet()) {
+            docBytes.put(docId, byteSum);
+
+            sb.append(docId);
+            sb.append(" ");
+            sb.append(docInfo.get(docId).getLeft());
+            sb.append(" ");
+            sb.append(docInfo.get(docId).getRight());
+            sb.append(" ");
+            sb.append("\n");
+            doc.writeUTF("akakak" + "akdawd" + "dvvvjvnvnvnvnv\n");
+
+            byteSum += sb.toString().getBytes(StandardCharsets.UTF_8).length;
+
+            sb.setLength(0); // clear string buffer
+        }
+
+        doc.close();
+
+//
+//        for(String term : tokenInfo.keySet()) {
+//
+//
+//
+////            String vocRecord = term + " " + tokenInfo.get(term).size();
+////            voc.writeChars(term); voc.
+//        }
 
     }
 
