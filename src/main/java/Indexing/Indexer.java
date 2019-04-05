@@ -251,6 +251,7 @@ public class Indexer {
     private void createPartialIndex() throws IOException {
 
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
+        long postFp;
 
         piCurrentNum++;
         piFileSuffixes.add(piCurrentNum.toString());
@@ -266,19 +267,15 @@ public class Indexer {
         /* Create a partial vocabulary and a partial posting file using current tokenInfo's state */
         for(String term : tokenInfo.keySet()) {
             voc.writeUTF(term);
-            voc.writeChar('\t');
             voc.writeLong(tokenInfo.get(term).size());
-            voc.writeChar('\t');
-            voc.writeLong(post.getFilePointer());
-            voc.writeChar('\n');
+            postFp = post.getFilePointer();
+            voc.writeLong(postFp);
             for(String docId : tokenInfo.get(term).keySet()) {
                 post.writeChars(docId); // no UTF-8 needed here, we only have numbers as strings
-                post.writeChar('\t');
                 post.writeInt(tokenInfo.get(term).get(docId).getLeft());
-                post.writeChar('\t');
                 post.writeLong(0); // pointer to DocumentsFile.txt record is currently unknown
-                post.writeChar('\n');
             }
+            voc.writeInt((int)(post.getFilePointer() - postFp)); // Byte length of term's posting data
         }
 
         /* Close files */
@@ -301,11 +298,8 @@ public class Indexer {
         for(String docId : docInfo.keySet()) {
             docBytes.put(docId, doc.getFilePointer());
             doc.writeUTF(docId);
-            doc.writeChar('\t');
             doc.writeUTF(docInfo.get(docId).getLeft());
-            doc.writeChar('\t');
             doc.writeDouble(docInfo.get(docId).getRight()); // At this moment, this must be equal to 0.0
-            doc.writeChar('\n');
         }
 
         doc.close();
@@ -346,7 +340,7 @@ public class Indexer {
             post2.setLength(0); vocMerged.setLength(0); postMerged.setLength(0);
 
             /*
-             * Following condition is not true because it moves the file pointer
+             * Following condition is ΝΟΤ true because it moves the file pointer
              * TODO: Fix condition (both files are not finished)
              */
             while(voc1.read() != -1 && voc2.read() != -1) {
@@ -363,7 +357,7 @@ public class Indexer {
                     /* TODO */
 
                     /* Move voc1 file pointer */
-                    voc1.readChar(); voc1.readLong(); voc1.readChar(); voc1.readLong(); voc1.readChar();
+                    voc1.readLong(); voc1.readLong(); voc1.readInt();
 
                     /* Don't move voc2 file pointer */
                     voc2.seek(voc2fp);
@@ -373,7 +367,7 @@ public class Indexer {
                     /* TODO */
 
                     /* Move voc2 file pointer */
-                    voc2.readChar(); voc2.readLong(); voc2.readChar(); voc2.readLong(); voc2.readChar();
+                    voc2.readLong(); voc2.readLong(); voc2.readInt();
 
                     /* Don't move voc1 file pointer */
                     voc1.seek(voc1fp);
@@ -383,8 +377,8 @@ public class Indexer {
                     /* TODO */
 
                     /* Move both file pointers */
-                    voc1.readChar(); voc1.readLong(); voc1.readChar(); voc1.readLong(); voc1.readChar();
-                    voc2.readChar(); voc2.readLong(); voc2.readChar(); voc2.readLong(); voc2.readChar();
+                    voc1.readLong(); voc1.readLong(); voc1.readInt();
+                    voc2.readLong(); voc2.readLong(); voc2.readInt();
                 }
             }
 
