@@ -33,9 +33,25 @@ public class Indexer {
     private TreeMap<String, MutablePair<String, Double>> docInfo;
 
     /*
-     * Lists with english and greek stopwords
+     * Sets with english and greek stopwords
      */
-    private List<String> enSwList, grSwList;
+    private HashSet<String> enSwSet, grSwSet;
+
+    /*
+     * Max terms of a partial index
+     */
+    private Integer piThreshold;
+
+    /*
+     * Current partial index number
+     */
+    private Integer piCurrentNum;
+
+    /*
+     * Use as a queue to store partial index file suffix names
+     * (e.g. PartialVocabularyFile4.txt -> "4")
+     */
+    private LinkedList<String> piFileSuffixes;
 
     // Constructor
 
@@ -45,9 +61,12 @@ public class Indexer {
     public Indexer() throws IOException {
         tokenInfo = new TreeMap<>();
         docInfo = new TreeMap<>();
+        piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
-        enSwList = parseStopwords(PathManager.getStopwordsPath() + "/stopwordsEn.txt");
-        grSwList = parseStopwords(PathManager.getStopwordsPath() + "/stopwordsGr.txt");
+        enSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsEn.txt"));
+        grSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsGr.txt"));
+        piThreshold = 60000; /* TODO: find a statistical way to determine threshold */
+        piCurrentNum = -1;
     }
 
     // Methods
@@ -58,12 +77,12 @@ public class Indexer {
      */
     public void index(String path) throws IOException {
         System.out.println("Indexing " + path + " ...");
+        new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
         PathManager.setExtraPath(path);
         File f = new File(PathManager.getCollectionPath() + PathManager.getExtraPath());
         parseRecursively(f);
-        computeDocumentVectorLengths();
-        new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
-        createIndexFiles();
+        if(tokenInfo.size() > 0)
+            createPartialIndex(); // Create the last partial index
         System.out.println("Files Indexed: " + PathManager.fileNames);
     }
 
@@ -154,7 +173,7 @@ public class Indexer {
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
             while (tokenizer.hasMoreTokens()) {
                 String currentToken = tokenizer.nextToken().toLowerCase(); // Convert to lower case
-                if(!enSwList.contains(currentToken) && !grSwList.contains(currentToken)) { // Accept only non-stopwords
+                if(!enSwSet.contains(currentToken) && !grSwSet.contains(currentToken)) { // Accept only non-stopwords
                     currentToken = Stemmer.Stem(currentToken); // Do stemming
                     if (tokenInfo.containsKey(currentToken)) {
                         if (tokenInfo.get(currentToken).containsKey(docId)) {
@@ -179,6 +198,12 @@ public class Indexer {
                         HashMap<String, MutablePair<Integer, HashMap<String, Integer>>> docHm = new HashMap<>();
                         docHm.put(docId, p);
                         tokenInfo.put(currentToken, docHm);
+                    }
+
+                    // Is it time to write a partial index to disk?
+                    if(tokenInfo.size() == piThreshold) {
+                        createPartialIndex();
+                        tokenInfo = new TreeMap<>(); // Clear tokenInfo for the new partial index
                     }
                 }
             }
@@ -219,42 +244,26 @@ public class Indexer {
     }
 
     /*
-     * Produce the index files: VocabularyFile.txt, PostingFile.txt, DocumentsFile.txt
+     * Produce partial index files: PartialVocabularyFile<Num>.txt, PartialPostingFile<Num>.txt
      */
-    private void createIndexFiles() throws IOException {
+    private void createPartialIndex() throws IOException {
 
         StringBuilder sb = new StringBuilder(); // To save time and space
 
-        HashMap<String, Long> docBytes = new HashMap<>();
-
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
 
+        piCurrentNum++;
+        piFileSuffixes.add(piCurrentNum.toString());
+
         RandomAccessFile voc = null;
-        voc = new RandomAccessFile(indexDir + "/VocabularyFile.txt", "rw");
+        voc = new RandomAccessFile(indexDir + "/PartialVocabularyFile" + piCurrentNum + ".txt", "rw");
         voc.setLength(0);
 
         RandomAccessFile post = null;
-        post = new RandomAccessFile(indexDir + "/PostingFile.txt", "rw");
+        post = new RandomAccessFile(indexDir + "/PartialPostingFile" + piCurrentNum + ".txt", "rw");
         post.setLength(0);
 
-        RandomAccessFile doc = null;
-        doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
-        doc.setLength(0);
-
-        /* Firstly, create the DocumentsFile.txt */
-        for(String docId : docInfo.keySet()) {
-            docBytes.put(docId, doc.getFilePointer());
-            sb.append(docId);
-            sb.append(" ");
-            sb.append(docInfo.get(docId).getLeft());
-            sb.append(" ");
-            sb.append(docInfo.get(docId).getRight());
-            sb.append("\n");
-            doc.writeUTF(sb.toString());
-            sb.setLength(0);
-        }
-
-        /* Then, create the postings and the vocabulary file */
+        /* Create a partial vocabulary and a partial posting file using current tokenInfo's state */
         for(String term : tokenInfo.keySet()) {
             sb.append(term);
             sb.append(" ");
@@ -269,84 +278,47 @@ public class Indexer {
                 sb.append(" ");
                 sb.append(tokenInfo.get(term).get(docId).getLeft());
                 sb.append(" ");
-                sb.append(docBytes.get(docId));
+                sb.append("P"); // pointer to DocumentsFile.txt record is currently unknown
                 sb.append("\n");
                 post.writeUTF(sb.toString());
                 sb.setLength(0);
             }
         }
 
-        // FOR TESTING. TO BE REMOVED
-//        voc.seek(0);
-//        String line = voc.readUTF().replaceAll("\n", "");
-//        String[] arr = line.split(" ");
-//        long p1 = Long.valueOf(arr[2]);
-//
-//        post.seek(p1);
-//        String line2 = post.readUTF().replaceAll("\n", "");
-//        System.out.println(line2);
-//        String[] arr2 = line2.split(" ");
-//        long p2 = Long.valueOf(arr2[2]);
-//        System.out.println(p2);
-//
-//        doc.seek(p2);
-//        String line3 = doc.readUTF();
-//        String[] arr3 = line3.split(" ");
-//        String fullpath = arr3[1];
-//
-//        System.out.println(fullpath);
-
-
         /* Close files */
         voc.close();
         post.close();
-        doc.close();
     }
 
-//    /*
-//     * Create VocabularyFile.txt with each line as a <term, df> pair
-//     */
-//    private void createVocabularyFile() throws IOException {
-//        String fileName = System.getProperty("user.dir") + "/CollectionIndex/VocabularyFile.txt";
-//        BufferedWriter writer = new BufferedWriter(
-//                new FileWriter(fileName, false)
-//        );
-//
-//        for (String term : tokenInfo.keySet()) {
-//            writer.write(term + " " + tokenInfo.get(term).size());
-//            writer.newLine();
-//        }
-//
-//        writer.close();
-//    }
-//
-//    /*
-//     * Create DocumentsFile.txt with each line as a <docId, docFullPath, docVecLen> triplet
-//     */
-//    private void createDocumentsFile() throws IOException {
-//        String fileName = System.getProperty("user.dir") + "/CollectionIndex/DocumentsFile.txt";
-//        BufferedWriter writer = new BufferedWriter(
-//                new FileWriter(fileName, false)
-//        );
-//
-//        for(String docId : docInfo.keySet()) {
-//            writer.write(docId + " " + docInfo.get(docId).getLeft() + " " + docInfo.get(docId).getRight());
-//            writer.newLine();
-//        }
-//
-//        writer.close();
-//    }
-//
-//    // FOR TESTING, TO BE REMOVED
-//    public static void exportToFile(String str) throws IOException {
-//
-//        BufferedWriter writer = new BufferedWriter(
-//                new FileWriter(PathManager.getCollectionPath() + "/output.txt", true)  //Set true for append mode
-//        );
-//
-//        writer.write(str);
-//        writer.newLine();
-//        writer.close();
-//    }
+    /*
+     * Produce the DocumentsFile.txt using the docInfo data structure and
+     * return a hashmap with the file pointer values for each record
+     */
+    HashMap<String, Long> createDocumentsFile() throws IOException {
+
+        StringBuilder sb = new StringBuilder();
+        HashMap<String, Long> docBytes = new HashMap<>();
+        String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
+
+        RandomAccessFile doc = null;
+        doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
+        doc.setLength(0);
+
+        for(String docId : docInfo.keySet()) {
+            docBytes.put(docId, doc.getFilePointer());
+            sb.append(docId);
+            sb.append(" ");
+            sb.append(docInfo.get(docId).getLeft());
+            sb.append(" ");
+            sb.append(docInfo.get(docId).getRight());
+            sb.append("\n");
+            doc.writeUTF(sb.toString());
+            sb.setLength(0);
+        }
+
+        doc.close();
+
+        return docBytes;
+    }
 
 }

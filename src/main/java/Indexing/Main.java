@@ -2,7 +2,7 @@ package Indexing;
 
 import java.io.IOException;
 
-public class Tester {
+public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
