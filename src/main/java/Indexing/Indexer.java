@@ -65,7 +65,7 @@ public class Indexer {
         Stemmer.Initialize();
         enSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsEn.txt"));
         grSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsGr.txt"));
-        piThreshold = 60000; /* TODO: find a statistical way to determine threshold */
+        piThreshold = 60000; /* TODO: Determine threshold statistically */
         piCurrentNum = -1;
     }
 
@@ -83,6 +83,7 @@ public class Indexer {
         parseRecursively(f);
         if(tokenInfo.size() > 0)
             createPartialIndex(); // Create the last partial index
+        //createFinalIndex(); // Uncomment this when implementation is ready
         System.out.println("Files Indexed: " + PathManager.fileNames);
     }
 
@@ -139,28 +140,29 @@ public class Indexer {
         docInfo.put(docId, p);
     }
 
-    /*
-     * Fill document vector length values in docInfo using
-     * tokenInfo and tf * idf weights
-     */
-    private void computeDocumentVectorLengths() {
-
-        // Compute sqrt(tf_1 * idf_1) + sqrt(tf_2 * idf_2) + ... + sqrt(tf_k * idf_k) for every document (with k terms)
-        for(String token : tokenInfo.keySet()) {
-            for(String docId : tokenInfo.get(token).keySet()) {
-                int tf = tokenInfo.get(token).get(docId).getLeft();
-                int df = tokenInfo.get(token).size();
-                int docsNum = docInfo.size();
-                double idf = Math.log((float)docsNum / df) / Math.log(2.0);
-                docInfo.get(docId).setRight(docInfo.get(docId).getRight() + Math.sqrt(tf * idf));
-            }
-        }
-
-        // Square the results when sum computation is finished
-        for(String docId : docInfo.keySet()) {
-            docInfo.get(docId).setRight(Math.sqrt(docInfo.get(docId).getRight()));
-        }
-    }
+// AFTER PARTIAL INDEXING, MAYBE THIS FUNCTION DOES NOT HAVE THE USE IT USED TO, BUT LET IT HERE...
+//    /*
+//     * Fill document vector length values in docInfo using
+//     * tokenInfo and tf * idf weights
+//     */
+//    private void computeDocumentVectorLengths() {
+//
+//        /* Compute sqrt(tf_1 * idf_1) + sqrt(tf_2 * idf_2) + ... + sqrt(tf_k * idf_k) for every document (with k terms) */
+//        for(String token : tokenInfo.keySet()) {
+//            for(String docId : tokenInfo.get(token).keySet()) {
+//                int tf = tokenInfo.get(token).get(docId).getLeft();
+//                int df = tokenInfo.get(token).size();
+//                int docsNum = docInfo.size();
+//                double idf = Math.log((float)docsNum / df) / Math.log(2.0);
+//                docInfo.get(docId).setRight(docInfo.get(docId).getRight() + Math.sqrt(tf * idf));
+//            }
+//        }
+//
+//        /* Square the results when sum computation is finished */
+//        for(String docId : docInfo.keySet()) {
+//            docInfo.get(docId).setRight(Math.sqrt(docInfo.get(docId).getRight()));
+//        }
+//    }
 
     /*
      * Read a HashMap of pairs of type <tagName, tagContent> coming from a file in path = path,
@@ -200,10 +202,10 @@ public class Indexer {
                         tokenInfo.put(currentToken, docHm);
                     }
 
-                    // Is it time to write a partial index to disk?
+                    /* Is it time to write a partial index to disk? */
                     if(tokenInfo.size() == piThreshold) {
                         createPartialIndex();
-                        tokenInfo = new TreeMap<>(); // Clear tokenInfo for the new partial index
+                        tokenInfo = new TreeMap<>(); // Prepare (clear) tokenInfo for the new partial index
                     }
                 }
             }
@@ -244,44 +246,38 @@ public class Indexer {
     }
 
     /*
-     * Produce partial index files: PartialVocabularyFile<Num>.txt, PartialPostingFile<Num>.txt
+     * Produce partial index files: VocabularyFile<Num>.txt, PostingFile<Num>.txt
      */
     private void createPartialIndex() throws IOException {
-
-        StringBuilder sb = new StringBuilder(); // To save time and space
 
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
 
         piCurrentNum++;
         piFileSuffixes.add(piCurrentNum.toString());
 
-        RandomAccessFile voc = null;
-        voc = new RandomAccessFile(indexDir + "/PartialVocabularyFile" + piCurrentNum + ".txt", "rw");
+        RandomAccessFile voc =
+                new RandomAccessFile(indexDir + "/VocabularyFile" + piCurrentNum + ".txt", "rw");
         voc.setLength(0);
 
-        RandomAccessFile post = null;
-        post = new RandomAccessFile(indexDir + "/PartialPostingFile" + piCurrentNum + ".txt", "rw");
+        RandomAccessFile post =
+                new RandomAccessFile(indexDir + "/PostingFile" + piCurrentNum + ".txt", "rw");
         post.setLength(0);
 
         /* Create a partial vocabulary and a partial posting file using current tokenInfo's state */
         for(String term : tokenInfo.keySet()) {
-            sb.append(term);
-            sb.append(" ");
-            sb.append(tokenInfo.get(term).size());
-            sb.append(" ");
-            sb.append(post.getFilePointer());
-            sb.append("\n");
-            voc.writeUTF(sb.toString());
-            sb.setLength(0);
+            voc.writeUTF(term);
+            voc.writeChar('\t');
+            voc.writeLong(tokenInfo.get(term).size());
+            voc.writeChar('\t');
+            voc.writeLong(post.getFilePointer());
+            voc.writeChar('\n');
             for(String docId : tokenInfo.get(term).keySet()) {
-                sb.append(docId);
-                sb.append(" ");
-                sb.append(tokenInfo.get(term).get(docId).getLeft());
-                sb.append(" ");
-                sb.append("P"); // pointer to DocumentsFile.txt record is currently unknown
-                sb.append("\n");
-                post.writeUTF(sb.toString());
-                sb.setLength(0);
+                post.writeChars(docId); // no UTF-8 needed here, we only have numbers as strings
+                post.writeChar('\t');
+                post.writeInt(tokenInfo.get(term).get(docId).getLeft());
+                post.writeChar('\t');
+                post.writeLong(0); // pointer to DocumentsFile.txt record is currently unknown
+                post.writeChar('\n');
             }
         }
 
@@ -294,26 +290,22 @@ public class Indexer {
      * Produce the DocumentsFile.txt using the docInfo data structure and
      * return a hashmap with the file pointer values for each record
      */
-    HashMap<String, Long> createDocumentsFile() throws IOException {
+    private HashMap<String, Long> createDocumentsFile() throws IOException {
 
-        StringBuilder sb = new StringBuilder();
         HashMap<String, Long> docBytes = new HashMap<>();
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
 
-        RandomAccessFile doc = null;
-        doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
+        RandomAccessFile doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
         doc.setLength(0);
 
         for(String docId : docInfo.keySet()) {
             docBytes.put(docId, doc.getFilePointer());
-            sb.append(docId);
-            sb.append(" ");
-            sb.append(docInfo.get(docId).getLeft());
-            sb.append(" ");
-            sb.append(docInfo.get(docId).getRight());
-            sb.append("\n");
-            doc.writeUTF(sb.toString());
-            sb.setLength(0);
+            doc.writeUTF(docId);
+            doc.writeChar('\t');
+            doc.writeUTF(docInfo.get(docId).getLeft());
+            doc.writeChar('\t');
+            doc.writeDouble(docInfo.get(docId).getRight()); // At this moment, this must be equal to 0.0
+            doc.writeChar('\n');
         }
 
         doc.close();
@@ -321,4 +313,100 @@ public class Indexer {
         return docBytes;
     }
 
+    /*
+     * Merge partial index files and create DocumentsFile.txt
+     */
+    private void createFinalIndex() throws IOException {
+
+        RandomAccessFile voc1, voc2, post1, post2, vocMerged, postMerged;
+        String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
+        String suffix1, suffix2, mergedSuffix = "", w1, w2;
+        long voc1fp, voc2fp;
+
+        HashMap<String, Long> docBytes = createDocumentsFile();
+
+        /* Merge partial indices */
+        while(piFileSuffixes.size() >= 2) {
+
+            /* Open random access files */
+            suffix1 = piFileSuffixes.remove();
+            voc1 = new RandomAccessFile(indexDir + "/VocabularyFile" + suffix1 + ".txt", "rw");
+            post1 = new RandomAccessFile(indexDir + "/PostingFile" + suffix1 + ".txt", "rw");
+            suffix2 = piFileSuffixes.remove();
+            voc2 = new RandomAccessFile(indexDir + "/VocabularyFile" + suffix2 + ".txt", "rw");
+            post2 = new RandomAccessFile(indexDir + "/PostingFile" + suffix2 + ".txt", "rw");
+            mergedSuffix = suffix1 + "_" + suffix2;
+            vocMerged = new RandomAccessFile(
+                    indexDir + "/VocabularyFile" + mergedSuffix + ".txt", "rw"
+            );
+            postMerged = new RandomAccessFile(
+                    indexDir + "/PostingFile" + mergedSuffix + ".txt", "rw"
+            );
+            voc1.setLength(0); voc2.setLength(0); post1.setLength(0);
+            post2.setLength(0); vocMerged.setLength(0); postMerged.setLength(0);
+
+            /*
+             * Following condition is not true because it moves the file pointer
+             * TODO: Fix condition (both files are not finished)
+             */
+            while(voc1.read() != -1 && voc2.read() != -1) {
+
+                /* Save previous file pointer values in case there's no need to move the file pointers */
+                voc1fp = voc1.getFilePointer();
+                voc2fp = voc2.getFilePointer();
+
+                w1 = voc1.readUTF();
+                w2 = voc2.readUTF();
+
+                if (w1.compareTo(w2) < 0) {
+
+                    /* TODO */
+
+                    /* Move voc1 file pointer */
+                    voc1.readChar(); voc1.readLong(); voc1.readChar(); voc1.readLong(); voc1.readChar();
+
+                    /* Don't move voc2 file pointer */
+                    voc2.seek(voc2fp);
+
+                } else if (w1.compareTo(w2) > 0) {
+
+                    /* TODO */
+
+                    /* Move voc2 file pointer */
+                    voc2.readChar(); voc2.readLong(); voc2.readChar(); voc2.readLong(); voc2.readChar();
+
+                    /* Don't move voc1 file pointer */
+                    voc1.seek(voc1fp);
+
+                } else {
+
+                    /* TODO */
+
+                    /* Move both file pointers */
+                    voc1.readChar(); voc1.readLong(); voc1.readChar(); voc1.readLong(); voc1.readChar();
+                    voc2.readChar(); voc2.readLong(); voc2.readChar(); voc2.readLong(); voc2.readChar();
+                }
+            }
+
+            /* Close and delete merged files */
+            voc1.close(); voc2.close(); post1.close(); post2.close();
+            new File(indexDir + "/VocabularyFile" + suffix1 + ".txt").delete();
+            new File(indexDir + "/PostingFile" + suffix1 + ".txt").delete();
+            new File(indexDir + "/VocabularyFile" + suffix2 + ".txt").delete();
+            new File(indexDir + "/PostingFile" + suffix2 + ".txt").delete();
+
+            /* Add merged file suffix to queue */
+            piFileSuffixes.add(mergedSuffix);
+        }
+
+        /* TODO: SOS! Compute Vector Lenghts and put 'em in DocumentsFile.txt */
+
+        /* Give index files a generic name */
+        new File(indexDir + "/VocabularyFile" + mergedSuffix + ".txt").renameTo(
+                new File(indexDir + "/VocabularyFile.txt")
+        );
+        new File(indexDir + "/PostingFile" + mergedSuffix + ".txt").renameTo(
+                new File(indexDir + "/PostingFile.txt")
+        );;
+    }
 }
