@@ -271,7 +271,7 @@ public class Indexer {
             postFp = post.getFilePointer();
             voc.writeLong(postFp);
             for(String docId : tokenInfo.get(term).keySet()) {
-                post.writeChars(docId); // no UTF-8 needed here, we only have numbers as strings
+                post.writeUTF(docId);
                 post.writeInt(tokenInfo.get(term).get(docId).getLeft());
                 post.writeLong(0); // pointer to DocumentsFile.txt record is currently unknown
             }
@@ -312,12 +312,18 @@ public class Indexer {
      */
     private void createFinalIndex() throws IOException {
 
-        RandomAccessFile voc1, voc2, post1, post2, vocMerged, postMerged;
+        RandomAccessFile voc1, voc2, post1, post2, vocMerged = null, postMerged = null, doc;
         String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
-        String suffix1, suffix2, mergedSuffix = "", w1, w2;
-        long voc1fp, voc2fp;
+        String suffix1, suffix2, mergedSuffix = "", w1, w2, docId;
+        long voc1fp, voc2fp, ptr, df;
+        double idf;
+        int pdSz, tf, docsNum;
 
-        HashMap<String, Long> docBytes = createDocumentsFile();
+        HashMap<String, Long> docBytes = createDocumentsFile(); // use this in merging
+
+        /* TODO: SOS! What happens when we only have 1 partial index? -> piFileSuffixes.size() == 1
+         * Pointers in posting file must be filled. Idk what else must be done in that case...
+         */
 
         /* Merge partial indices */
         while(piFileSuffixes.size() >= 2) {
@@ -339,11 +345,11 @@ public class Indexer {
             voc1.setLength(0); voc2.setLength(0); post1.setLength(0);
             post2.setLength(0); vocMerged.setLength(0); postMerged.setLength(0);
 
-            /*
-             * Following condition is ΝΟΤ true because it moves the file pointer
-             * TODO: Fix condition (both files are not finished)
-             */
             while(voc1.read() != -1 && voc2.read() != -1) {
+
+                /* Because read moves file pointer value 1 byte ahead */
+                voc1.seek(voc1.getFilePointer() - 1);
+                voc2.seek(voc2.getFilePointer() - 1);
 
                 /* Save previous file pointer values in case there's no need to move the file pointers */
                 voc1fp = voc1.getFilePointer();
@@ -382,6 +388,9 @@ public class Indexer {
                 }
             }
 
+            /* TODO: manage situation if only voc1 has finished, but not voc2 */
+            /* TODO: manage situation if only voc2 has finished, but not voc1 */
+
             /* Close and delete merged files */
             voc1.close(); voc2.close(); post1.close(); post2.close();
             new File(indexDir + "/VocabularyFile" + suffix1 + ".txt").delete();
@@ -393,7 +402,33 @@ public class Indexer {
             piFileSuffixes.add(mergedSuffix);
         }
 
-        /* TODO: SOS! Compute Vector Lenghts and put 'em in DocumentsFile.txt */
+        /* Fill missing vector lengths in docInfo */
+        docsNum = docInfo.size();
+        while(vocMerged.read() != -1) {
+            vocMerged.seek(vocMerged.getFilePointer() - 1); // because read moves fp 1 byte ahead
+            vocMerged.readUTF(); // term
+            df = vocMerged.readLong(); // df
+            ptr = vocMerged.readLong(); // ptr
+            pdSz = vocMerged.readInt(); // record's posting data size
+            postMerged.seek(ptr);
+            while(postMerged.getFilePointer() != ptr + pdSz) {
+                docId = postMerged.readUTF();
+                tf = postMerged.readInt();
+                postMerged.readLong();
+                idf = Math.log((float)docsNum / df) / Math.log(2.0);
+                docInfo.get(docId).setRight(docInfo.get(docId).getRight() + Math.sqrt(tf * idf));
+            }
+        }
+
+        /* Square the results when sum computation is finished and write them to DocumentsFile.txt */
+        doc = new RandomAccessFile(indexDir + "/DocumentsFile.txt", "rw");
+        for(String id : docInfo.keySet()) {
+            docInfo.get(id).setRight(Math.sqrt(docInfo.get(id).getRight()));
+            doc.readUTF();
+            doc.readUTF();
+            doc.writeDouble(docInfo.get(id).getRight());
+        }
+        doc.close();
 
         /* Give index files a generic name */
         new File(indexDir + "/VocabularyFile" + mergedSuffix + ".txt").renameTo(
@@ -401,6 +436,9 @@ public class Indexer {
         );
         new File(indexDir + "/PostingFile" + mergedSuffix + ".txt").renameTo(
                 new File(indexDir + "/PostingFile.txt")
-        );;
+        );
+
+        postMerged.close();
+        vocMerged.close();
     }
 }
