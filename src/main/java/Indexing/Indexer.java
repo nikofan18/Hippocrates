@@ -83,7 +83,7 @@ public class Indexer {
         parseRecursively(f);
         if(tokenInfo.size() > 0)
             createPartialIndex(); // Create the last partial index
-        //createFinalIndex(); // Uncomment this when implementation is ready
+        createFinalIndex(); // Uncomment this when implementation is ready
         System.out.println("Files Indexed: " + PathManager.fileNames);
     }
 
@@ -139,30 +139,6 @@ public class Indexer {
         MutablePair<String, Double> p = new MutablePair<>(fullPath, 0.0);
         docInfo.put(docId, p);
     }
-
-// AFTER PARTIAL INDEXING, MAYBE THIS FUNCTION DOES NOT HAVE THE USE IT USED TO, BUT LET IT HERE...
-//    /*
-//     * Fill document vector length values in docInfo using
-//     * tokenInfo and tf * idf weights
-//     */
-//    private void computeDocumentVectorLengths() {
-//
-//        /* Compute sqrt(tf_1 * idf_1) + sqrt(tf_2 * idf_2) + ... + sqrt(tf_k * idf_k) for every document (with k terms) */
-//        for(String token : tokenInfo.keySet()) {
-//            for(String docId : tokenInfo.get(token).keySet()) {
-//                int tf = tokenInfo.get(token).get(docId).getLeft();
-//                int df = tokenInfo.get(token).size();
-//                int docsNum = docInfo.size();
-//                double idf = Math.log((float)docsNum / df) / Math.log(2.0);
-//                docInfo.get(docId).setRight(docInfo.get(docId).getRight() + Math.sqrt(tf * idf));
-//            }
-//        }
-//
-//        /* Square the results when sum computation is finished */
-//        for(String docId : docInfo.keySet()) {
-//            docInfo.get(docId).setRight(Math.sqrt(docInfo.get(docId).getRight()));
-//        }
-//    }
 
     /*
      * Read a HashMap of pairs of type <tagName, tagContent> coming from a file in path = path,
@@ -317,13 +293,19 @@ public class Indexer {
         String suffix1, suffix2, mergedSuffix = "", w1, w2, docId;
         long voc1fp, voc2fp, ptr, df;
         double idf;
-        int pdSz, tf, docsNum;
+        int pdSz, tf, docsNum, currentTF, newTF, mergedFilesCounter = 0, wordComparison;
+
+        TreeMap<String, MutablePair<Integer, Long>> postData = new TreeMap<>();
 
         HashMap<String, Long> docBytes = createDocumentsFile(); // use this in merging
 
-        /* TODO: SOS! What happens when we only have 1 partial index? -> piFileSuffixes.size() == 1
-         * Pointers in posting file must be filled. Idk what else must be done in that case...
+        /*
+         * In case there's only one partial index, create an empty - dummy partial index
+         * for the algorithm to be generic
          */
+        if(piFileSuffixes.size() == 1) {
+            piFileSuffixes.add("1");
+        }
 
         /* Merge partial indices */
         while(piFileSuffixes.size() >= 2) {
@@ -335,21 +317,15 @@ public class Indexer {
             suffix2 = piFileSuffixes.remove();
             voc2 = new RandomAccessFile(indexDir + "/VocabularyFile" + suffix2 + ".txt", "rw");
             post2 = new RandomAccessFile(indexDir + "/PostingFile" + suffix2 + ".txt", "rw");
-            mergedSuffix = suffix1 + "_" + suffix2;
+            mergedSuffix = "_m" + mergedFilesCounter++;
             vocMerged = new RandomAccessFile(
                     indexDir + "/VocabularyFile" + mergedSuffix + ".txt", "rw"
             );
             postMerged = new RandomAccessFile(
                     indexDir + "/PostingFile" + mergedSuffix + ".txt", "rw"
             );
-            voc1.setLength(0); voc2.setLength(0); post1.setLength(0);
-            post2.setLength(0); vocMerged.setLength(0); postMerged.setLength(0);
 
-            while(voc1.read() != -1 && voc2.read() != -1) {
-
-                /* Because read moves file pointer value 1 byte ahead */
-                voc1.seek(voc1.getFilePointer() - 1);
-                voc2.seek(voc2.getFilePointer() - 1);
+            while(!isEOFReached(voc1) && !isEOFReached(voc2)) {
 
                 /* Save previous file pointer values in case there's no need to move the file pointers */
                 voc1fp = voc1.getFilePointer();
@@ -358,38 +334,113 @@ public class Indexer {
                 w1 = voc1.readUTF();
                 w2 = voc2.readUTF();
 
-                if (w1.compareTo(w2) < 0) {
+                wordComparison = w1.compareTo(w2);
 
-                    /* TODO */
+                if (wordComparison < 0) { // w1 < w2
 
-                    /* Move voc1 file pointer */
-                    voc1.readLong(); voc1.readLong(); voc1.readInt();
+                    vocMerged.writeUTF(w1); // copy term
+                    vocMerged.writeLong(voc1.readLong()); // copy df
+                    vocMerged.writeLong(postMerged.getFilePointer()); // new fp
+                    post1.seek(ptr = voc1.readLong());
+                    vocMerged.writeInt(pdSz = voc1.readInt()); // copy posting data size
+                    while(post1.getFilePointer() != pdSz + ptr) {
+                        postMerged.writeUTF(docId = post1.readUTF());
+                        postMerged.writeInt(post1.readInt());
+                        postMerged.writeLong(docBytes.get(docId));
+                        post1.readLong(); // skip ptr
+                    }
 
                     /* Don't move voc2 file pointer */
                     voc2.seek(voc2fp);
 
-                } else if (w1.compareTo(w2) > 0) {
+                } else if (wordComparison > 0) { // w1 > w2
 
-                    /* TODO */
-
-                    /* Move voc2 file pointer */
-                    voc2.readLong(); voc2.readLong(); voc2.readInt();
+                    vocMerged.writeUTF(w2); // copy term
+                    vocMerged.writeLong(voc2.readLong()); // copy df
+                    vocMerged.writeLong(postMerged.getFilePointer()); // new fp
+                    post2.seek(ptr = voc2.readLong());
+                    vocMerged.writeInt(pdSz = voc2.readInt()); // copy posting data size
+                    while(post2.getFilePointer() != pdSz + ptr) {
+                        postMerged.writeUTF(docId = post2.readUTF());
+                        postMerged.writeInt(post2.readInt());
+                        postMerged.writeLong(docBytes.get(docId));
+                        post2.readLong(); // skip ptr
+                    }
 
                     /* Don't move voc1 file pointer */
                     voc1.seek(voc1fp);
 
                 } else {
 
-                    /* TODO */
+                    /* Save post1's data for w1 to a structure */
+                    voc1.readLong(); // skip df
+                    post1.seek(ptr = voc1.readLong());
+                    pdSz = voc1.readInt();
+                    while(post1.getFilePointer() != ptr + pdSz) {
+                        postData.put(docId = post1.readUTF(), new MutablePair<>(post1.readInt(), docBytes.get(docId)));
+                        post1.readLong(); // skip old ptr
+                    }
 
-                    /* Move both file pointers */
-                    voc1.readLong(); voc1.readLong(); voc1.readInt();
-                    voc2.readLong(); voc2.readLong(); voc2.readInt();
+                    /* Save post2's data for w2 to a structure */
+                    voc2.readLong(); // skip df
+                    post2.seek(ptr = voc2.readLong());
+                    pdSz = voc2.readInt();
+                    while(post2.getFilePointer() != ptr + pdSz) {
+                        currentTF = 0;
+                        docId = post2.readUTF();
+                        newTF = post2.readInt();
+                        if(postData.containsKey(docId)) {
+                            currentTF = postData.get(docId).getLeft();
+                        }
+                        newTF += currentTF;
+                        postData.put(docId, new MutablePair<>(newTF, docBytes.get(docId)));
+                        post2.readLong(); // skip old ptr
+                    }
+
+                    /* Write merged files */
+                    vocMerged.writeUTF(w1);
+                    vocMerged.writeLong(postData.size());
+                    vocMerged.writeLong(ptr = postMerged.getFilePointer());
+                    for(String id : postData.keySet()) {
+                        postMerged.writeUTF(id);
+                        postMerged.writeInt(postData.get(id).getLeft());
+                        postMerged.writeLong(postData.get(id).getRight());
+                    }
+                    vocMerged.writeInt((int)(postMerged.getFilePointer() - ptr));
+
+                    postData = new TreeMap<>(); // clear posting data structure
                 }
             }
 
-            /* TODO: manage situation if only voc1 has finished, but not voc2 */
-            /* TODO: manage situation if only voc2 has finished, but not voc1 */
+            /* In case voc2 has finished, but not voc1 */
+            while(!isEOFReached(voc1)) {
+                vocMerged.writeUTF(voc1.readUTF()); // copy term
+                vocMerged.writeLong(voc1.readLong()); // copy df
+                vocMerged.writeLong(postMerged.getFilePointer()); // new fp
+                post1.seek(ptr = voc1.readLong());
+                vocMerged.writeInt(pdSz = voc1.readInt()); // copy posting data size
+                while(post1.getFilePointer() != pdSz + ptr) {
+                    postMerged.writeUTF(docId = post1.readUTF()); // write doc id
+                    postMerged.writeInt(post1.readInt()); // write tf
+                    postMerged.writeLong(docBytes.get(docId)); // write
+                    post1.readLong(); // skip ptr
+                }
+            }
+
+            /* In case voc1 has finished, but not voc2 */
+            while(!isEOFReached(voc2)) {
+                vocMerged.writeUTF(voc2.readUTF()); // copy term
+                vocMerged.writeLong(voc2.readLong()); // copy df
+                vocMerged.writeLong(postMerged.getFilePointer()); // new fp
+                post2.seek(ptr = voc2.readLong());
+                vocMerged.writeInt(pdSz = voc2.readInt()); // copy posting data size
+                while(post2.getFilePointer() != pdSz + ptr) {
+                    postMerged.writeUTF(docId = post2.readUTF()); // write doc id
+                    postMerged.writeInt(post2.readInt()); // write tf
+                    postMerged.writeLong(docBytes.get(docId)); // write
+                    post2.readLong(); // skip ptr
+                }
+            }
 
             /* Close and delete merged files */
             voc1.close(); voc2.close(); post1.close(); post2.close();
@@ -403,9 +454,10 @@ public class Indexer {
         }
 
         /* Fill missing vector lengths in docInfo */
+        vocMerged.seek(0);
+        postMerged.seek(0);
         docsNum = docInfo.size();
-        while(vocMerged.read() != -1) {
-            vocMerged.seek(vocMerged.getFilePointer() - 1); // because read moves fp 1 byte ahead
+        while(!isEOFReached(vocMerged)) {
             vocMerged.readUTF(); // term
             df = vocMerged.readLong(); // df
             ptr = vocMerged.readLong(); // ptr
@@ -428,7 +480,6 @@ public class Indexer {
             doc.readUTF();
             doc.writeDouble(docInfo.get(id).getRight());
         }
-        doc.close();
 
         /* Give index files a generic name */
         new File(indexDir + "/VocabularyFile" + mergedSuffix + ".txt").renameTo(
@@ -438,7 +489,22 @@ public class Indexer {
                 new File(indexDir + "/PostingFile.txt")
         );
 
+        doc.close();
         postMerged.close();
         vocMerged.close();
     }
+
+    /*
+     * Helper function to check if a random access file has reached the EOF
+     */
+    private boolean isEOFReached(RandomAccessFile f) throws IOException {
+        boolean ret = false;
+        long prevPtr = f.getFilePointer();
+        if(f.read() == -1) {
+            ret = true;
+        }
+        f.seek(prevPtr);
+        return ret;
+    }
+
 }
