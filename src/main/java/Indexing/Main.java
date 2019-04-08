@@ -2,9 +2,7 @@ package Indexing;
 
 import mitos.stemmer.Stemmer;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.TreeMap;
@@ -49,7 +47,7 @@ public class Main {
 //            while (postMerged.getFilePointer() != vocMap.get(term).get(1) + vocMap.get(term).get(2)) {
 //                System.out.println("~~~~~~~");
 //                postMerged.readUTF();
-//                System.out.println("tf: " + postMerged.readInt());
+//                System.out.println("tf: " + postMerged.readDouble());
 //                doc.seek(postMerged.readLong());
 //                System.out.println("docId: " + doc.readUTF());
 //                System.out.println("fullpath: " + doc.readUTF());
@@ -59,13 +57,13 @@ public class Main {
 //        }
     }
 
-//    private static boolean isEOFReached(RandomAccessFile f) throws IOException {
-//        boolean ret = false;
-//        long prevPtr = f.getFilePointer();
-//        if(f.read() == -1) {
-//            ret = true;
-//        }
-//        f.seek(prevPtr);
-//        return ret;
-//    }
+    private static boolean isEOFReached(RandomAccessFile f) throws IOException {
+        boolean ret = false;
+        long prevPtr = f.getFilePointer();
+        if(f.read() == -1) {
+            ret = true;
+        }
+        f.seek(prevPtr);
+        return ret;
+    }
 }

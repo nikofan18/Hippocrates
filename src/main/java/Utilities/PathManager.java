@@ -10,6 +10,8 @@ public class PathManager {
 
     private static String collectionPath = "MedicalCollection"; // Add your own path here
 
+    private static String indexDirPath = System.getProperty("user.dir") + "/CollectionIndex";
+
     private static String extraPath = "";
 
     private static int numOfFiles = -1;
@@ -18,6 +20,10 @@ public class PathManager {
 
 
     // Methods
+
+    public static String getIndexDirPath() { return indexDirPath; }
+
+    public static void setIndexDirPath(String indexDirPath) { PathManager.indexDirPath = indexDirPath; }
 
     public static String getStopwordsPath() { return stopwordsPath; }
 
