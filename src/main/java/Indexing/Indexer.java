@@ -1,17 +1,15 @@
 package Indexing;
 
 import Utilities.PathManager;
+import Utilities.SharedUtilities;
 import gr.uoc.csd.hy463.NXMLFileReader;
 import mitos.stemmer.Stemmer;
 
 import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.MutableTriple;
+
 
 public class Indexer {
 
@@ -32,11 +30,6 @@ public class Indexer {
      * ...
      */
     private TreeMap<String, MutableTriple<String, Integer, Double>> docInfo;
-
-    /*
-     * Sets with english and greek stopwords
-     */
-    private HashSet<String> enSwSet, grSwSet;
 
     /*
      * Max terms of a partial index
@@ -64,9 +57,7 @@ public class Indexer {
         docInfo = new TreeMap<>();
         piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
-        enSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsEn.txt"));
-        grSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsGr.txt"));
-        piThreshold = 50000; /* TODO: Determine threshold statistically */
+        piThreshold = 400000;
         piCurrentNum = -1;
     }
 
@@ -92,45 +83,25 @@ public class Indexer {
     }
 
     /*
-     * Return a list with all stopwords read from file with path = path
-     */
-    private List<String> parseStopwords(String path) throws IOException {
-        Path swFile = Paths.get(path);
-        return Files.readAllLines(swFile, Charset.forName("UTF-8"));
-    }
-
-    /*
-     * Perform the appropriate lexical analysis actions on a string
-     */
-    private String doLexicalAnalysis(String str){
-        String result;
-
-        result = str.replaceAll("['´῾᾽\"]",""); // Ignore apostrophes
-        result = result.replaceAll("[\\p{Punct}]", " "); // Replace punctuations with space character
-
-        return result;
-    }
-
-    /*
      * For a given file with path = path, parse its tag contents
      */
     private void parseTags(String path) throws IOException {
         HashMap<String, String> tagPairs =  new HashMap<>();
         File f = new File(path);
         NXMLFileReader xmlFile =  new NXMLFileReader(f);
-        tagPairs.put("title", doLexicalAnalysis(xmlFile.getTitle()));
+        tagPairs.put("title", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getTitle()));
         tagPairs.put("pmcid", xmlFile.getPMCID());
-        tagPairs.put("abstract", doLexicalAnalysis(xmlFile.getAbstr()));
-        tagPairs.put("body", doLexicalAnalysis(xmlFile.getBody()));
-        tagPairs.put("journal", doLexicalAnalysis(xmlFile.getJournal()));
-        tagPairs.put("publisher", doLexicalAnalysis(xmlFile.getPublisher()));
+        tagPairs.put("abstract", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getAbstr()));
+        tagPairs.put("body", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getBody()));
+        tagPairs.put("journal", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getJournal()));
+        tagPairs.put("publisher", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getPublisher()));
         int counter = 0; // Used to ensure that every author key in this doc is different
         for(String entry : xmlFile.getAuthors()) {
-            tagPairs.put("authors_" + counter++, doLexicalAnalysis(entry));
+            tagPairs.put("authors_" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
         }
         counter = 0;
         for(String entry : xmlFile.getCategories()) {
-            tagPairs.put("categories_" + counter++, doLexicalAnalysis(entry));
+            tagPairs.put("categories_" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
         }
         int maxTF = populateTokenInfo(tagPairs, xmlFile.getPMCID());
         populateDocInfo(xmlFile.getPMCID(), path, maxTF);
@@ -162,8 +133,9 @@ public class Indexer {
         for(String tagName : tagPairs.keySet()) {
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
             while (tokenizer.hasMoreTokens()) {
-                String currentToken = tokenizer.nextToken().toLowerCase(); // Convert to lower case
-                if(!enSwSet.contains(currentToken) && !grSwSet.contains(currentToken)) { // Accept only non-stopwords
+                String currentToken = tokenizer.nextToken();
+                if(!SharedUtilities.getInstance().enSwSet.contains(currentToken)
+                        && !SharedUtilities.getInstance().grSwSet.contains(currentToken)) { // Accept only non-stopwords
                     currentToken = Stemmer.Stem(currentToken); // Do stemming
                     if (tokenInfo.containsKey(currentToken)) {
                         if (tokenInfo.get(currentToken).containsKey(docId)) {
@@ -294,6 +266,7 @@ public class Indexer {
                 )
         );
 
+        doc.writeLong(docInfo.size()); // write doc num at the start of the file
         for(String docId : docInfo.keySet()) {
             docBytes.put(docId, docRAF.getFilePointer());
             doc.writeUTF(docId);
@@ -397,7 +370,8 @@ public class Indexer {
                     )
             );
 
-            while(!isEOFReached(voc1) && !isEOFReached(voc2)) {
+            while(!SharedUtilities.getInstance().isEOFReached(voc1)
+                    && !SharedUtilities.getInstance().isEOFReached(voc2)) {
 
                 /* Save previous file pointer values in case there's no need to move the file pointers */
                 voc1fp = voc1.getFilePointer();
@@ -497,7 +471,7 @@ public class Indexer {
             }
 
             /* In case voc2 has finished, but not voc1 */
-            while(!isEOFReached(voc1)) {
+            while(!SharedUtilities.getInstance().isEOFReached(voc1)) {
                 vocMerged.writeUTF(voc1.readUTF()); // copy term
                 vocMerged.writeLong(voc1.readLong()); // copy df
                 pdSz = voc1.readInt();
@@ -520,7 +494,7 @@ public class Indexer {
             }
 
             /* In case voc1 has finished, but not voc2 */
-            while(!isEOFReached(voc2)) {
+            while(!SharedUtilities.getInstance().isEOFReached(voc2)) {
                 vocMerged.writeUTF(voc2.readUTF()); // copy term
                 vocMerged.writeLong(voc2.readLong()); // copy df
                 pdSz = voc2.readInt();
@@ -565,7 +539,7 @@ public class Indexer {
      */
     private void fillDocumentVectorLengths() throws IOException {
 
-        int pdSz,docsNum = docInfo.size();
+        int pdSz;
         double idf, tf;
         long df, ptr;
         String docId;
@@ -582,7 +556,9 @@ public class Indexer {
                 PathManager.getIndexDirPath() + "/DocumentsFile.txt", "rw"
         );
 
-        while(!isEOFReached(voc)) {
+        SharedUtilities.getInstance().docsNum = doc.readLong();
+
+        while(!SharedUtilities.getInstance().isEOFReached(voc)) {
             voc.readUTF(); // term
             df = voc.readLong(); // df
             ptr = voc.readLong(); // ptr
@@ -591,7 +567,7 @@ public class Indexer {
                 docId = post.readUTF();
                 tf = post.readDouble();
                 post.readLong();
-                idf = Math.log((float)docsNum / df) / Math.log(2.0);
+                idf = Math.log(SharedUtilities.getInstance().docsNum / (double)df) / Math.log(2.0);
                 docInfo.get(docId).setRight(docInfo.get(docId).getRight() + Math.sqrt(tf * idf));
             } while(post.getFilePointer() != ptr + pdSz);
         }
@@ -603,19 +579,6 @@ public class Indexer {
             doc.readUTF();
             doc.writeDouble(docInfo.get(id).getRight());
         }
-    }
-
-    /*
-     * Helper function to check if a random access file has reached the EOF
-     */
-    private boolean isEOFReached(RandomAccessFile f) throws IOException {
-        boolean ret = false;
-        long prevPtr = f.getFilePointer();
-        if(f.read() == -1) {
-            ret = true;
-        }
-        f.seek(prevPtr);
-        return ret;
     }
 
     /*

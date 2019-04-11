@@ -1,5 +1,6 @@
 package Indexing;
 
+import Searching.Searcher;
 import mitos.stemmer.Stemmer;
 
 import java.io.*;
@@ -11,9 +12,21 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
-        i.index("/00"); // The argument is the extraPath (to index whole collection, use "")
+        i.index("/test"); // The argument is the extraPath (to index whole collection, use "")
 
-//        /* TO TEST IF INDEX IS SUCCESSFULLY CREATED */
+//        Searcher s = new Searcher();
+//
+//        Scanner sc = new Scanner(System.in);
+//        String term;
+//        System.out.println("Type a query: ");
+//        while(!(term = sc.next()).equals("exit")) {
+//            System.out.println(s.search(term));
+//            System.out.println("Type a query: ");
+//        }
+//
+//        System.out.println("Bye Bye, ta pame");
+
+        /* TO TEST IF INDEX IS SUCCESSFULLY CREATED */
 //
 //        String indexDir = System.getProperty("user.dir") + "/CollectionIndex";
 //        RandomAccessFile vocMerged = new RandomAccessFile(indexDir + "/VocabularyFile.txt", "rw");
