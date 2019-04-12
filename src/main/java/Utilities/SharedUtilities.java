@@ -9,10 +9,13 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 
+/*
+ * A class that provides fields and methods to both Indexer and Searcher
+ */
 public class SharedUtilities {
 
     /*
-     * Create a singleton
+     * To create a singleton
      */
     private static SharedUtilities instance = null;
     public static SharedUtilities getInstance() throws IOException {

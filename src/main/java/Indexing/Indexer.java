@@ -52,12 +52,12 @@ public class Indexer {
     /*
      * Initialize things (stemmer, stopword lists etc.)
      */
-    public Indexer() throws IOException {
+    public Indexer() {
         tokenInfo = new TreeMap<>();
         docInfo = new TreeMap<>();
         piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
-        piThreshold = 400000;
+        piThreshold = 1000000;
         piCurrentNum = -1;
     }
 
@@ -68,13 +68,14 @@ public class Indexer {
      * from the collection given by path (it may be a single file or a directory)
      */
     public void index(String path) throws IOException {
-        System.out.println("Indexing " + path + " ...");
         new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
         new File(PathManager.getIndexDirPath() + "/DocumentsFile.txt").delete();
         new File(PathManager.getIndexDirPath() + "/VocabularyFile.txt").delete();
         new File(PathManager.getIndexDirPath() + "/PostingFile.txt").delete();
         PathManager.setExtraPath(path);
-        File f = new File(PathManager.getCollectionPath() + PathManager.getExtraPath());
+        String finalPath = PathManager.getCollectionPath() + PathManager.getExtraPath();
+        File f = new File(finalPath);
+        System.out.println("Indexing " + finalPath + " ...");
         parseRecursively(f);
         if(tokenInfo.size() > 0)
             createPartialIndex(); // Create the last partial index
@@ -111,6 +112,7 @@ public class Indexer {
             createPartialIndex();
             tokenInfo = new TreeMap<>(); // Prepare (clear) tokenInfo for the new partial index
         }
+
     }
 
     /*
@@ -128,7 +130,7 @@ public class Indexer {
      */
     private int populateTokenInfo(HashMap<String, String> tagPairs, String docId) throws IOException {
 
-        int maxTF = 0;
+        int maxTF = 1;
         String delimiter = "\t\n\r\f ";
         for(String tagName : tagPairs.keySet()) {
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
@@ -267,6 +269,7 @@ public class Indexer {
         );
 
         doc.writeLong(docInfo.size()); // write doc num at the start of the file
+        doc.flush();
         for(String docId : docInfo.keySet()) {
             docBytes.put(docId, docRAF.getFilePointer());
             doc.writeUTF(docId);
