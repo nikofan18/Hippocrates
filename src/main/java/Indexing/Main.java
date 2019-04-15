@@ -8,7 +8,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
-        i.index("/00"); // The argument is the extraPath (to index whole collection, use "")
+        i.index("/test"); // The argument is the extraPath (to index whole collection, use "")
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         Searcher s = new Searcher();

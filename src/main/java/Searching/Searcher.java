@@ -3,15 +3,13 @@ package Searching;
 import Utilities.PathManager;
 import Utilities.SharedUtilities;
 import mitos.stemmer.Stemmer;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.MutableTriple;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.StringTokenizer;
+import java.util.*;
 
 public class Searcher {
 
@@ -38,7 +36,9 @@ public class Searcher {
     public Searcher() throws IOException {
 
         /* Open index files */
-        RandomAccessFile voc = new RandomAccessFile(PathManager.getIndexDirPath() + "/VocabularyFile.txt", "rw");
+        RandomAccessFile voc = new RandomAccessFile(
+                PathManager.getIndexDirPath() + "/VocabularyFile.txt", "rw"
+        );
         post = new RandomAccessFile(PathManager.getIndexDirPath() + "/PostingFile.txt", "rw");
         doc = new RandomAccessFile(PathManager.getIndexDirPath() + "/DocumentsFile.txt", "rw");
 
@@ -74,9 +74,9 @@ public class Searcher {
 
         if(!queryTokens.isEmpty()) {
 
-            for(String token : queryTokens) {
+            for (String token : queryTokens) {
 
-                if(vocMap.containsKey(token)) {
+                if (vocMap.containsKey(token)) {
 
                     /* For document vector */
                     long df = vocMap.get(token).getLeft(); // term's df
@@ -110,16 +110,16 @@ public class Searcher {
 
                 /* For query vector */
                 double nonNormTF = (double) Collections.frequency(queryTokens, token);
-                if(nonNormTF > maxTF)
+                if (nonNormTF > maxTF)
                     maxTF = nonNormTF;
                 queryHm.put(token, nonNormTF); // for now, just store the non-normalized tf values
             }
 
             /* Put final weights in query vector and compute its length */
             double queryVecLen = 0.0;
-            for(String token : queryTokens) {
+            for (String token : queryTokens) {
                 double weight = 0.0;
-                if(vocMap.containsKey(token)) {
+                if (vocMap.containsKey(token)) {
                     double normTF = queryHm.get(token) / maxTF; // normalize tf
                     long df = vocMap.get(token).getLeft();
                     double idf = Math.log(SharedUtilities.getInstance().docsNum / (double) df) / Math.log(2.0);
@@ -131,23 +131,46 @@ public class Searcher {
             queryVecLen = Math.sqrt(queryVecLen);
 
             /* Compute the score (cosine similarity) for each document */
-            for(String docId : docHm.keySet()) {
+            List<MutablePair<String, Double>> docList = new ArrayList<>();
+            for (String docId : docHm.keySet()) {
                 Double docVecLen = docHm.get(docId).getRight();
                 double cross = 0.0;
-                for(String term : queryHm.keySet()) {
-                    if(docHm.get(docId).getMiddle().containsKey(term))
+                for (String term : queryHm.keySet()) {
+                    if (docHm.get(docId).getMiddle().containsKey(term))
                         cross += queryHm.get(term) * docHm.get(docId).getMiddle().get(term);
                 }
 
                 double score = 0.0;
-                if(queryVecLen != 0) {
+                if (queryVecLen != 0) {
                     score = cross / (docVecLen * queryVecLen);
                 }
-                JSONObject docObj = new JSONObject();
 
-                docObj.append("path", docHm.get(docId).getLeft());
-                docObj.append("score", score);
-                answer.append(docId, docObj);
+                docList.add(new MutablePair<>(docHm.get(docId).getLeft(), score));
+
+            }
+
+            /* Sort documents by score */
+            docList.sort(
+                    (MutablePair<String, Double> p1, MutablePair<String, Double> p2) ->
+                    {
+                        if (p1.getRight() > p2.getRight())
+                            return 1;
+                        else if (p1.getRight() < p2.getRight())
+                            return -1;
+                        else
+                            return 0;
+                    });
+
+            /* Put the answer in the JSON object */
+            Iterator<MutablePair<String, Double>> docListIterator = docList.iterator();
+            MutablePair<String, Double> p;
+            int counter = 0;
+            while (docListIterator.hasNext()) {
+                JSONObject docObj = new JSONObject();
+                p = docListIterator.next();
+                docObj.append("path", p.left);
+                docObj.append("score", p.right);
+                answer.append("doc" + counter++, docObj);
             }
 
         }

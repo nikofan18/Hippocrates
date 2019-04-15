@@ -21,7 +21,7 @@ public class Indexer {
      *        -> ...
      * token2 ...
      */
-    private TreeMap<String, HashMap<String, MutablePair<Integer, HashMap<String, Integer>>>> tokenInfo;
+    private TreeMap<String, HashMap<String, MutableTriple<Integer, Integer, HashMap<String, Integer>>>> tokenInfo;
 
     /*
      * The docInfo TreeMap holds information like this:
@@ -47,6 +47,13 @@ public class Indexer {
      */
     private LinkedList<String> piFileSuffixes;
 
+    /*
+     * tf multipliers hashmap
+     * To give different weight to terms appeared in
+     * different sections of a document
+     */
+    private HashMap<String, Integer> tfMul;
+
     // Constructor
 
     /*
@@ -55,10 +62,21 @@ public class Indexer {
     public Indexer() {
         tokenInfo = new TreeMap<>();
         docInfo = new TreeMap<>();
+        tfMul = new HashMap<>();
         piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
         piThreshold = 1000000;
         piCurrentNum = -1;
+
+        /* Weights depending on tags */
+        tfMul.put("title", 10);
+        tfMul.put("pmcid", 50);
+        tfMul.put("abstract", 5);
+        tfMul.put("journal", 3);
+        tfMul.put("body", 1);
+        tfMul.put("publisher", 3);
+        tfMul.put("authors", 4);
+        tfMul.put("categories", 3);
     }
 
     // Methods
@@ -98,11 +116,11 @@ public class Indexer {
         tagPairs.put("publisher", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getPublisher()));
         int counter = 0; // Used to ensure that every author key in this doc is different
         for(String entry : xmlFile.getAuthors()) {
-            tagPairs.put("authors_" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
+            tagPairs.put("authors" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
         }
         counter = 0;
         for(String entry : xmlFile.getCategories()) {
-            tagPairs.put("categories_" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
+            tagPairs.put("categories" + counter++, SharedUtilities.getInstance().doLexicalAnalysis(entry));
         }
         int maxTF = populateTokenInfo(tagPairs, xmlFile.getPMCID());
         populateDocInfo(xmlFile.getPMCID(), path, maxTF);
@@ -133,6 +151,7 @@ public class Indexer {
         int maxTF = 1;
         String delimiter = "\t\n\r\f ";
         for(String tagName : tagPairs.keySet()) {
+            int tfMultiplier = tfMul.get(tagName.replaceAll("\\d", ""));
             StringTokenizer tokenizer = new StringTokenizer(tagPairs.get(tagName), delimiter);
             while (tokenizer.hasMoreTokens()) {
                 String currentToken = tokenizer.nextToken();
@@ -143,8 +162,10 @@ public class Indexer {
                         if (tokenInfo.get(currentToken).containsKey(docId)) {
                             int nonNormTF = tokenInfo.get(currentToken).get(docId).getLeft() + 1;
                             tokenInfo.get(currentToken).get(docId).setLeft(nonNormTF); // Increase non-normalized tf
-                            if(nonNormTF > maxTF)
-                                maxTF = nonNormTF;
+                            /* Always keep the greatest multiplier. This has a meaning in the case where a term appears
+                             * inside different kinds of tags, each other having a different multiplier */
+                            if(tfMultiplier > tokenInfo.get(currentToken).get(docId).getMiddle())
+                                tokenInfo.get(currentToken).get(docId).setMiddle(tfMultiplier);
                             if (tokenInfo.get(currentToken).get(docId).getRight().containsKey(tagName)) {
                                 int newValue = tokenInfo.get(currentToken).get(docId).getRight().get(tagName) + 1;
                                 tokenInfo.get(currentToken).get(docId).getRight().put(tagName, newValue);
@@ -154,17 +175,25 @@ public class Indexer {
                         } else {
                             HashMap<String, Integer> tagHm = new HashMap<>();
                             tagHm.put(tagName, 1);
-                            MutablePair<Integer, HashMap<String, Integer>> p = new MutablePair<>(1, tagHm);
+                            MutableTriple<Integer, Integer, HashMap<String, Integer>> p =
+                                    new MutableTriple<>(1, tfMultiplier, tagHm);
                             tokenInfo.get(currentToken).put(docId, p);
                         }
                     } else {
                         HashMap<String, Integer> tagHm = new HashMap<>();
                         tagHm.put(tagName, 1);
-                        MutablePair<Integer, HashMap<String, Integer>> p = new MutablePair<>(1, tagHm);
-                        HashMap<String, MutablePair<Integer, HashMap<String, Integer>>> docHm = new HashMap<>();
+                        MutableTriple<Integer, Integer, HashMap<String, Integer>> p =
+                                new MutableTriple<>(1, tfMultiplier, tagHm);
+                        HashMap<String, MutableTriple<Integer, Integer, HashMap<String, Integer>>> docHm =
+                                new HashMap<>();
                         docHm.put(docId, p);
                         tokenInfo.put(currentToken, docHm);
                     }
+                    /* Update max tf considering the multiplication with the tf multiplier */
+                    int multipliedTF = tokenInfo.get(currentToken).get(docId).getLeft() *
+                            tokenInfo.get(currentToken).get(docId).getMiddle();
+                    if(multipliedTF > maxTF)
+                        maxTF = multipliedTF;
                 }
             }
         }
@@ -238,8 +267,9 @@ public class Indexer {
             for(String docId : tokenInfo.get(term).keySet()) {
                 post.writeUTF(docId);
                 post.writeDouble(
-                        tokenInfo.get(term).get(docId).getLeft() / (double)docInfo.get(docId).getMiddle()
-                ); // normalized tf
+                        (tokenInfo.get(term).get(docId).getLeft() * tokenInfo.get(term).get(docId).getMiddle())
+                                / (double)docInfo.get(docId).getMiddle()
+                ); // normalized and weighted tf
             }
             voc.writeInt(computeInterval(post.size(), sizeBefore)); // Byte length of term's posting data
         }
@@ -538,7 +568,6 @@ public class Indexer {
 
     /*
      * Compute document vector lengths and fill the empty fields in DocumentsFile.txt
-     * TODO: Do a more efficient approach, like Papadakos said in e-mail
      */
     private void fillDocumentVectorLengths() throws IOException {
 
@@ -585,16 +614,14 @@ public class Indexer {
     }
 
     /*
-     * Computes interval between end and start
-     * Takes care of overflows
+     * Computes interval between end and start integers
+     * Takes into consideration a possible overflow of end
      */
     private int computeInterval(int end, int start) {
         if(end >= start)
             return end - start;
-        else { // overflow
-            System.out.println("OOOPS!!!");
-            return 1; /* TODO: Implement overflow case */
-        }
+        else // overflow
+            return (Integer.MAX_VALUE - start) + (end - Integer.MIN_VALUE) + 1;
     }
 
 }
