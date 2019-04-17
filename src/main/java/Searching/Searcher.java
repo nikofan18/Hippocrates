@@ -9,6 +9,8 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 /*
@@ -76,7 +78,7 @@ public class Searcher {
         HashMap<String, MutableTriple<String, HashMap<String, Double>, Double>> docHm = new HashMap<>();
         HashMap<String, Double> queryHm = new HashMap<>();
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
         if(!queryTokens.isEmpty()) {
 
@@ -174,19 +176,21 @@ public class Searcher {
             while (docListIterator.hasNext()) {
                 JSONObject docObj = new JSONObject();
                 p = docListIterator.next();
-                docObj.append("path", p.left);
-                docObj.append("score", p.right);
-                answer.append("doc" + counter++, docObj);
+                docObj.put("path", p.left);
+                docObj.put("score", p.right);
+                answer.put("doc" + counter++, docObj);
             }
 
         }
 
-        long endTime = System.currentTimeMillis();
+        long endTime = System.nanoTime();
 
-        long searchTime = endTime - startTime;
+        double searchTime = (endTime - startTime) / 1000000.0;
+        searchTime = BigDecimal.valueOf(searchTime).setScale(3, RoundingMode.HALF_UP).doubleValue();
+
         int resultsNum = answer.length();
-        answer.append("time", searchTime);
-        answer.append("results", resultsNum);
+        answer.put("time", searchTime);
+        answer.put("results", resultsNum);
         return answer;
     }
 
