@@ -11,6 +11,10 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.*;
 
+/*
+ * A class that provides the appropriate fields and methods to find relevant
+ * documents to a query, using an inverted index and vector space model
+ */
 public class Searcher {
 
     // Fields

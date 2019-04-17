@@ -10,14 +10,17 @@ import java.util.*;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.MutableTriple;
 
-
+/*
+ * A class that provides the appropriate fields and methods to
+ * create an inverted index on a collection of documents
+ */
 public class Indexer {
 
     // Fields
 
     /* The tokenInfo TreeMap holds information like this:
-     * token1 -> {doc1, nonNormalizedTF1} -> { [tagName1, occurencesInTag1], [tagName2, occurencesInTag2], ... }
-     *        -> {doc2, nonNormalizedTF2} -> { [tagName1, occurencesInTag1], [tagName2, occurencesInTag2], ... }
+     * token1 -> {doc1, nonNormalizedTF1, tfMul1} -> { [tagName1, occurencesInTag1], [tagName2, occurencesInTag2], ... }
+     *        -> {doc2, nonNormalizedTF2, tfMul2} -> { [tagName1, occurencesInTag1], [tagName2, occurencesInTag2], ... }
      *        -> ...
      * token2 ...
      */
@@ -43,14 +46,14 @@ public class Indexer {
 
     /*
      * Use as a queue to store partial index file suffix names
-     * (e.g. PartialVocabularyFile4.txt -> "4")
+     * (e.g. VocabularyFile4.txt -> "4")
      */
     private LinkedList<String> piFileSuffixes;
 
     /*
-     * tf multipliers hashmap
-     * To give different weight to terms appeared in
-     * different sections of a document
+     * TF multipliers HashMap
+     * To give different weight to terms that appear in
+     * different sections (tags) of a document
      */
     private HashMap<String, Integer> tfMul;
 
@@ -68,7 +71,7 @@ public class Indexer {
         piThreshold = 1000000;
         piCurrentNum = -1;
 
-        /* Weights depending on tags */
+        /* Weighting (tf multipliers) depending on tags */
         tfMul.put("title", 10);
         tfMul.put("pmcid", 50);
         tfMul.put("abstract", 5);
@@ -144,7 +147,7 @@ public class Indexer {
     /*
      * Read a HashMap of pairs of type <tagName, tagContent> coming from a file in path = path,
      * do tokenization, stopword removal, stemming and populate tokenInfo TreeMap with new tokens.
-     * Return the max tf of the document.
+     * Also, decide the appropriate tf multiplier depending on tags. Return the max tf of the document.
      */
     private int populateTokenInfo(HashMap<String, String> tagPairs, String docId) throws IOException {
 
@@ -189,7 +192,7 @@ public class Indexer {
                         docHm.put(docId, p);
                         tokenInfo.put(currentToken, docHm);
                     }
-                    /* Update max tf considering the multiplication with the tf multiplier */
+                    /* Update max tf considering the weighting using the tf multiplier */
                     int multipliedTF = tokenInfo.get(currentToken).get(docId).getLeft() *
                             tokenInfo.get(currentToken).get(docId).getMiddle();
                     if(multipliedTF > maxTF)
@@ -320,8 +323,7 @@ public class Indexer {
 
         RandomAccessFile voc1, voc2, post1, post2;
         DataOutputStream vocMerged = null, postMerged = null;
-//        RandomAccessFile voc1RAF, voc2RAF, post1RAF, post2RAF, doc;
-        RandomAccessFile vocMergedRAF = null, postMergedRAF = null;
+        RandomAccessFile vocMergedRAF, postMergedRAF;
         String suffix1, suffix2, mergedSuffix = "", w1, w2, docId;
         long voc1fp, voc2fp, ptr;
         int pdSz, mergedFilesCounter = 0, wordComparison, sizeBefore, longSize = 8, newPtrsSum = 0;
@@ -611,6 +613,10 @@ public class Indexer {
             doc.readUTF();
             doc.writeDouble(docInfo.get(id).getRight());
         }
+
+        voc.close();
+        post.close();
+        doc.close();
     }
 
     /*
