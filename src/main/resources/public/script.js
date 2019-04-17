@@ -4,7 +4,12 @@ function sendQuery() {
         url: "api/queries/" + document.getElementById("searchInput").value,
         success: function (data) {
             var obj = JSON.parse(data);
-            alert(obj.query);
+            alert(obj);
         }
     })
+}
+
+function renderSearch(obj) {
+    document.getElementById('results').innerHTML = "";
+
 }
