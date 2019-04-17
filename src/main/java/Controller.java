@@ -1,23 +1,41 @@
+import Searching.Searcher;
 import org.json.JSONObject;
+
+import java.io.IOException;
+
 import static spark.Spark.*;
 
 public class Controller {
-// lets start
+
+    public static Searcher s;
+
+    static {
+        try {
+            s = new Searcher();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
 
-        // put files in 'src/main/resources/public'
+        /*
+         * Put files in 'src/main/resources/public'
+         */
         staticFiles.location("/public");
 
-        // this is the root REST path
+        /*
+         * Root REST path
+         */
         path("/api", () -> {
 
-            // test get
-            get("/test", (req, res) -> "Success !!!");
-
-            // the query from the search engine
+            /*
+             * Query search get request
+             */
             get("/queries/:query", (req, res) -> {
-                JSONObject obj = new JSONObject();
-                return obj.put("query", req.params(":query"));
+                JSONObject answer = s.search(req.params(":query"));
+                System.out.println(answer);
+                return answer;
             });
 
         });

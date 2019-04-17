@@ -76,6 +76,8 @@ public class Searcher {
         HashMap<String, MutableTriple<String, HashMap<String, Double>, Double>> docHm = new HashMap<>();
         HashMap<String, Double> queryHm = new HashMap<>();
 
+        long startTime = System.currentTimeMillis();
+
         if(!queryTokens.isEmpty()) {
 
             for (String token : queryTokens) {
@@ -179,6 +181,12 @@ public class Searcher {
 
         }
 
+        long endTime = System.currentTimeMillis();
+
+        long searchTime = endTime - startTime;
+        int resultsNum = answer.length();
+        answer.append("time", searchTime);
+        answer.append("results", resultsNum);
         return answer;
     }
 
