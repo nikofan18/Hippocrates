@@ -89,14 +89,12 @@ public class Indexer {
      * from the collection given by path (it may be a single file or a directory)
      */
     public void index(String path) throws IOException {
-        new File(System.getProperty("user.dir") + "/CollectionIndex").mkdir();
+        new File(PathManager.getIndexDirPath()).mkdir();
         new File(PathManager.getIndexDirPath() + "/DocumentsFile.txt").delete();
         new File(PathManager.getIndexDirPath() + "/VocabularyFile.txt").delete();
         new File(PathManager.getIndexDirPath() + "/PostingFile.txt").delete();
-        PathManager.setExtraPath(path);
-        String finalPath = PathManager.getCollectionPath() + PathManager.getExtraPath();
-        File f = new File(finalPath);
-        System.out.println("Indexing " + finalPath + " ...");
+        File f = new File(path);
+        System.out.println("Indexing " + path + " ...");
         parseRecursively(f);
         if(tokenInfo.size() > 0)
             createPartialIndex(); // Create the last partial index
@@ -112,7 +110,7 @@ public class Indexer {
         File f = new File(path);
         NXMLFileReader xmlFile =  new NXMLFileReader(f);
         tagPairs.put("title", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getTitle()));
-        tagPairs.put("pmcid", xmlFile.getPMCID());
+        tagPairs.put("pmcid", xmlFile.getPMCID()); // no lexical analysis needed on id
         tagPairs.put("abstract", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getAbstr()));
         tagPairs.put("body", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getBody()));
         tagPairs.put("journal", SharedUtilities.getInstance().doLexicalAnalysis(xmlFile.getJournal()));
@@ -322,7 +320,7 @@ public class Indexer {
     private void createFinalIndex() throws IOException {
 
         RandomAccessFile voc1, voc2, post1, post2;
-        DataOutputStream vocMerged = null, postMerged = null;
+        DataOutputStream vocMerged, postMerged;
         RandomAccessFile vocMergedRAF, postMergedRAF;
         String suffix1, suffix2, mergedSuffix = "", w1, w2, docId;
         long voc1fp, voc2fp, ptr;
@@ -349,37 +347,18 @@ public class Indexer {
             voc1 = new RandomAccessFile(
                     PathManager.getIndexDirPath() + "/VocabularyFile" + suffix1 + ".txt", "rw"
             );
-//            voc1 = new DataInputStream(
-//                    new BufferedInputStream(
-//                            new FileInputStream(voc1RAF.getFD())
-//                    )
-//            );
             post1 = new RandomAccessFile(
                     PathManager.getIndexDirPath() + "/PostingFile" + suffix1 + ".txt", "rw"
             );
-//            post1 = new DataInputStream(
-//                    new BufferedInputStream(
-//                            new FileInputStream(post1RAF.getFD())
-//                    )
-//            );
+
 
             suffix2 = piFileSuffixes.remove();
             voc2 = new RandomAccessFile(
                     PathManager.getIndexDirPath() + "/VocabularyFile" + suffix2 + ".txt", "rw"
             );
-//            voc2 = new DataInputStream(
-//                    new BufferedInputStream(
-//                            new FileInputStream(voc2RAF.getFD())
-//                    )
-//            );
             post2 = new RandomAccessFile(
                     PathManager.getIndexDirPath() + "/PostingFile" + suffix2 + ".txt", "rw"
             );
-//            post2 = new DataInputStream(
-//                    new BufferedInputStream(
-//                            new FileInputStream(post2RAF.getFD())
-//                    )
-//            );
 
             if(piFileSuffixes.isEmpty()) {
                 isLastMerging = true;

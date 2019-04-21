@@ -33,7 +33,7 @@ public class Controller {
              * Query search get request
              */
             get("/queries/:query", (req, res) -> {
-                JSONObject answer = s.search(req.params(":query"));
+                JSONObject answer = s.search(req.params(":query"), "TODO: change this");
                 System.out.println(answer);
                 return answer;
             });

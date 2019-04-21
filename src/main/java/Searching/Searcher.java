@@ -5,8 +5,10 @@ import Utilities.SharedUtilities;
 import mitos.stemmer.Stemmer;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.MutableTriple;
+import org.apache.lucene.wordnet.SynonymMap;
 import org.json.JSONObject;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.math.BigDecimal;
@@ -34,6 +36,16 @@ public class Searcher {
      */
     private RandomAccessFile doc, post;
 
+    /*
+     * Important words in topics.xml file
+     */
+    private HashSet<String> topicImp;
+
+    /*
+     * To use synonyms in query expansion, using a WordNet dictionary
+     */
+    private SynonymMap synMap;
+
     // Constructor
 
     /*
@@ -59,6 +71,14 @@ public class Searcher {
         }
         voc.close();
 
+        /* Load important words of topics.xml file */
+        topicImp = new HashSet<>(SharedUtilities.getInstance().parseWords(
+                PathManager.getWordsPath() + "/importantInTopics.txt")
+        );
+
+        /* Initialize synonym map using the appropriate WordNet prolog file */
+        synMap = new SynonymMap(new FileInputStream("WordNet/wn_s.pl"));
+
         Stemmer.Initialize();
 
         SharedUtilities.getInstance().docsNum = doc.readLong(); // total documents number
@@ -71,12 +91,13 @@ public class Searcher {
      * Do searching for a query using vector space model and
      * return a JSON object with the results
      */
-    public JSONObject search(String query) throws IOException {
+    public JSONObject search(String query, String type) throws IOException {
         JSONObject answer = new JSONObject();
         double maxTF = 0.0;
-        ArrayList<String> queryTokens = getLexicalAnalysedTokens(query);
         HashMap<String, MutableTriple<String, HashMap<String, Double>, Double>> docHm = new HashMap<>();
         HashMap<String, Double> queryHm = new HashMap<>();
+
+        ArrayList<String> queryTokens = makeQueryTokens(query, type);
 
         long startTime = System.nanoTime();
 
@@ -196,22 +217,40 @@ public class Searcher {
 
 
     /*
-     * Performs lexical analysis on a query string and returns its tokens
+     * Takes a query and the type of the searching, makes the appropriate
+     * processing and returns a collection with the query's tokens
      */
-    private ArrayList<String> getLexicalAnalysedTokens(String query) throws IOException {
+    private ArrayList<String> makeQueryTokens(String query, String type) throws IOException {
 
         String delimiter = "\t\n\r\f ";
         ArrayList<String> ret = new ArrayList<>();
+        boolean isTypeGiven = false;
+        if(type.equals("diagnosis") || type.equals("test") || type.equals("treatment"))
+            isTypeGiven = true;
+
         query = SharedUtilities.getInstance().doLexicalAnalysis(query); // do lexical analysis
+
         StringTokenizer tokenizer = new StringTokenizer(query, delimiter);
-        while(tokenizer.hasMoreTokens()) {
+        while (tokenizer.hasMoreTokens()) {
             String currentToken = tokenizer.nextToken();
-            if(!SharedUtilities.getInstance().enSwSet.contains(currentToken)
+            if (!SharedUtilities.getInstance().enSwSet.contains(currentToken)
                     && !SharedUtilities.getInstance().grSwSet.contains(currentToken)) { // accept only non-stopwords
+
+                if(isTypeGiven) {
+                    if(!topicImp.contains(currentToken))
+                        continue; // keep only topic important words (medical terms, diseases etc.)
+                    String[] synonyms = synMap.getSynonyms(currentToken);
+                    if(synonyms.length != 0)
+                        ret.add(Stemmer.Stem(synonyms[0])); // add one synonym after doing stemming on it
+                }
+
                 currentToken = Stemmer.Stem(currentToken); // do stemming
                 ret.add(currentToken);
             }
         }
+
+        if(isTypeGiven)
+            ret.add(type); // add the type as a word
 
         return ret;
     }

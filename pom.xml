@@ -28,7 +28,7 @@
             <version>2.8.0</version>
         </dependency>
 
-        <!-- dependency for json-->
+        <!-- dependency for json -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
@@ -56,6 +56,13 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.2.1</version>
+        </dependency>
+
+        <!-- dependency for lucene wordnet thesaurus api -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-wordnet</artifactId>
+            <version>3.3.0</version>
         </dependency>
 
     </dependencies>

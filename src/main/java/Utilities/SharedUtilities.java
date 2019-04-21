@@ -28,8 +28,8 @@ public class SharedUtilities {
      * Private constructor used in a singleton class
      */
     private SharedUtilities() throws IOException {
-        enSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsEn.txt"));
-        grSwSet = new HashSet<>(parseStopwords(PathManager.getStopwordsPath() + "/stopwordsGr.txt"));
+        enSwSet = new HashSet<>(parseWords(PathManager.getWordsPath() + "/stopwordsEn.txt"));
+        grSwSet = new HashSet<>(parseWords(PathManager.getWordsPath() + "/stopwordsGr.txt"));
     }
 
     /*
@@ -43,9 +43,9 @@ public class SharedUtilities {
     public Long docsNum;
 
     /*
-     * Return a list with all stopwords read from file with path = path
+     * Return a list with all words read from file with path = path
      */
-    private List<String> parseStopwords(String path) throws IOException {
+    public List<String> parseWords(String path) throws IOException {
         Path swFile = Paths.get(path);
         return Files.readAllLines(swFile, Charset.forName("UTF-8"));
     }

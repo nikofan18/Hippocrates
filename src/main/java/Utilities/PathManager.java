@@ -6,13 +6,11 @@ public class PathManager {
 
     // Fields
 
-    private static String stopwordsPath = "Stopwords";
+    private static String wordsPath = "WordLists";
 
-    private static String collectionPath = "MedicalCollection"; // Add your own path here
+    private static String collectionPath = "MedicalCollection";
 
-    private static String indexDirPath = System.getProperty("user.dir") + "/CollectionIndex";
-
-    private static String extraPath = "";
+    private static String indexDirPath = "CollectionIndex";
 
     private static int numOfFiles = -1;
 
@@ -25,9 +23,9 @@ public class PathManager {
 
     public static void setIndexDirPath(String indexDirPath) { PathManager.indexDirPath = indexDirPath; }
 
-    public static String getStopwordsPath() { return stopwordsPath; }
+    public static String getWordsPath() { return wordsPath; }
 
-    public static void setStopwordsPath(String stopwordsPath) { PathManager.stopwordsPath = stopwordsPath; }
+    public static void setWordsPath(String wordsPath) { PathManager.wordsPath = wordsPath; }
 
     public static String getCollectionPath(){
        return collectionPath;
@@ -35,14 +33,6 @@ public class PathManager {
 
     public static void setCollectionPath(String collectionPath) {
         PathManager.collectionPath = collectionPath;
-    }
-
-    public static String getExtraPath() {
-        return extraPath;
-    }
-
-    public static void setExtraPath(String extraPath) {
-        PathManager.extraPath = extraPath;
     }
 
     public static void setNumOfFiles(int numOfFiles) {
