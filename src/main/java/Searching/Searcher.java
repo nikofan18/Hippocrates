@@ -239,7 +239,6 @@ public class Searcher {
                     && !SharedUtilities.getInstance().grSwSet.contains(currentToken)) { // accept only non-stopwords
 
                 if(isTypeGiven) {
-                    System.out.println("eimai ena panemorfo agori");
                     if(!topicImp.contains(currentToken))
                         continue; // keep only topic important words (medical terms, diseases etc.)
                     String[] synonyms = synMap.getSynonyms(currentToken);
@@ -253,7 +252,7 @@ public class Searcher {
         }
 
         if(isTypeGiven)
-            ret.add(type); // add the type as a word
+            ret.add(Stemmer.Stem(type)); // add the type as a word
 
         return ret;
     }

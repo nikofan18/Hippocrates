@@ -9,7 +9,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
-        i.index(PathManager.getCollectionPath() + "/test");
+        i.index(PathManager.getCollectionPath() + "/0");
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         Searcher s = new Searcher();

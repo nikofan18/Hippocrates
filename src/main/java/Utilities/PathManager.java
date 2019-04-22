@@ -6,15 +6,11 @@ public class PathManager {
 
     // Fields
 
-    private static String wordsPath = "WordLists";
-
-    private static String collectionPath = "MedicalCollection";
-
-    private static String indexDirPath = "CollectionIndex";
-
-    private static int numOfFiles = -1;
-
     public static ArrayList<String> fileNames = new ArrayList<>();
+    private static String wordsPath = "WordLists";
+    private static String collectionPath = "src/main/resources/public/MedicalCollection";
+    private static String indexDirPath = "CollectionIndex";
+    private static int numOfFiles = -1;
 
 
     // Methods
@@ -35,12 +31,12 @@ public class PathManager {
         PathManager.collectionPath = collectionPath;
     }
 
-    public static void setNumOfFiles(int numOfFiles) {
-        PathManager.numOfFiles = numOfFiles;
-    }
-
     public static int getNumOfFiles() {
         return numOfFiles;
+    }
+
+    public static void setNumOfFiles(int numOfFiles) {
+        PathManager.numOfFiles = numOfFiles;
     }
 
 }
