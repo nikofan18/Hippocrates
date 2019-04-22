@@ -6,12 +6,13 @@ var totalResults = 0;
 function sendQuery() {
 
     window.location.href = '#';
-    document.getElementById('resultsContent').innerHTML = '';
-    document.getElementById('foundHeader').style.display = 'none';
-    document.getElementById('showMore').style.display = 'none';
-    document.getElementById('searching').style.display = 'block';
+    if(document.getElementById("srch-term").value !== '') {
+        document.getElementById('resultsContent').innerHTML = '';
+        document.getElementById('foundHeader').style.display = 'none';
+        document.getElementById('showMore').style.display = 'none';
+        document.getElementById('searching').style.display = 'block';
 
-    totalResults = 0;
+        totalResults = 0;
         document.getElementById("query").innerHTML = document.getElementById("srch-term").value;
         $.ajax({
             method: "GET",
@@ -20,11 +21,12 @@ function sendQuery() {
             success: function (data) {
                 obj = JSON.parse(data);
                 rendered = obj.results;
-                if(obj.results > resultsToShow)
+                if (obj.results > resultsToShow)
                     document.getElementById('showMore').style.display = 'block';
                 renderSearch(obj);
             }
         })
+    }
 }
 
 function renderSearch(obj) {
