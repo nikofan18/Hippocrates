@@ -226,6 +226,7 @@ public class Searcher {
         String delimiter = "\t\n\r\f ";
         ArrayList<String> ret = new ArrayList<>();
         boolean isTypeGiven = false;
+        type = type.toLowerCase();
         if(type.equals("diagnosis") || type.equals("test") || type.equals("treatment"))
             isTypeGiven = true;
 
@@ -238,6 +239,7 @@ public class Searcher {
                     && !SharedUtilities.getInstance().grSwSet.contains(currentToken)) { // accept only non-stopwords
 
                 if(isTypeGiven) {
+                    System.out.println("eimai ena panemorfo agori");
                     if(!topicImp.contains(currentToken))
                         continue; // keep only topic important words (medical terms, diseases etc.)
                     String[] synonyms = synMap.getSynonyms(currentToken);

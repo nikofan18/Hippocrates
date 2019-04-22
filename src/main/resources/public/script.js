@@ -1,5 +1,5 @@
 var obj;
-var typeVar = 'Choose Type';
+var typeVar = 'Type';
 
 function sendQuery() {
         document.getElementById("query").innerHTML = document.getElementById("srch-term").value;
@@ -30,12 +30,13 @@ function renderSearch(obj) {
 
 
     document.getElementById("ms").innerHTML = obj.time;
-    for(var i=0; i < obj.results; i++){
+    for(var i=obj.results - 1; i >= 0; i--){
         document.getElementById('resultsContent').innerHTML += '' +
         '<div id="'+obj["doc"+i].path+'">'+
             //    data-toggle="modal" data-target="#myModal"
             //    onclick="showContent(this.id)"
-            '<a id="'+obj["doc"+i].path+'" href="'+obj["doc"+i].path+'" >Document Name</a>'+
+            // href="'+obj["doc"+i].path+'"
+            '<a onclick="showContent(this.id)" data-toggle="modal"  id="'+obj["doc"+i].path+'" >'+obj["doc"+i].name+'</a>'+
             '<h5>'+obj["doc"+i].path+'</h5>'+
             '<h6>Score: '+obj["doc"+i].score+'</h6>'+
         '</div>' +
