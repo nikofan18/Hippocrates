@@ -197,7 +197,8 @@ public class Searcher {
             while (docListIterator.hasNext()) {
                 JSONObject docObj = new JSONObject();
                 p = docListIterator.next();
-                docObj.put("path", p.left);
+                docObj.put("name", p.left.substring(p.left.lastIndexOf("/") + 1));
+                docObj.put("path", p.left.substring(p.left.lastIndexOf("/MedicalCollection")));
                 docObj.put("score", p.right);
                 answer.put("doc" + counter++, docObj);
             }
