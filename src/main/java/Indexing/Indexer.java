@@ -68,7 +68,7 @@ public class Indexer {
         tfMul = new HashMap<>();
         piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
-        piThreshold = 1000000;
+        piThreshold = 60000; /* TODO: find this */
         piCurrentNum = -1;
 
         /* Weighting (tf multipliers) depending on tags */

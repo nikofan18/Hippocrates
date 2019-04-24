@@ -1,4 +1,5 @@
-import Searching.Searcher;
+package Searching;
+
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -33,8 +34,6 @@ public class Controller {
              * Query search get request
              */
             get("/queries/:query/type/:type", (req, res) -> {
-                System.out.println("query : " + req.params(":query"));
-                System.out.println("type : " + req.params(":type"));
                 JSONObject answer = s.search(req.params(":query"),req.params(":type"));
                 System.out.println(answer);
                 return answer;

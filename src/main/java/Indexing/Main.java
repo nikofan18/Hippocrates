@@ -1,6 +1,5 @@
 package Indexing;
 
-import Searching.Searcher;
 import Utilities.PathManager;
 
 import java.io.*;
@@ -9,18 +8,12 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
-        i.index(PathManager.getCollectionPath() + "/0");
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        Searcher s = new Searcher();
+        String path = PathManager.getCollectionPath(); // default path
+        if(args.length > 0)
+            path = args[0];
 
-        String query;
-        System.out.println("Type a query: ");
-        while(!(query = br.readLine()).equals("exit")) {
-            System.out.println(s.search(query, "diagnosis"));
-            System.out.println("Type a query: ");
-        }
-
+        i.index(path);
     }
 
 }

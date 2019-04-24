@@ -54,18 +54,15 @@ function renderSearch(obj) {
 }
 function renderNResults(n) {
     for(var i=rendered - 1; i >= rendered - n; i--){
-        console.log(i);
+
         if(i < 0) {
             document.getElementById('showMore').style.display = 'none';
             break;
         }
         document.getElementById('resultsContent').innerHTML += '' +
-            '<div id="'+obj["doc"+i].path+'">'+
-            //    data-toggle="modal" data-target="#myModal"
-            //    onclick="showContent(this.id)"
-            // href="'+obj["doc"+i].path+'"
-            '<a onclick="showContent(this.id)" data-toggle="modal"  id="'+obj["doc"+i].path+'" >'+obj["doc"+i].name+'</a>'+
-            '<h5>'+obj["doc"+i].path+'</h5>'+
+            '<div id="'+obj["doc"+i].short_path+'">'+
+            '<a onclick="showContent(this.id)" data-toggle="modal"  id="'+obj["doc"+i].short_path+'" >'+obj["doc"+i].name+'</a>'+
+            '<h5>'+obj["doc"+i].full_path+'</h5>'+
             '<h6>Score: '+obj["doc"+i].score+'</h6>'+
             '</div>' +
             '<hr class="style-six">';
