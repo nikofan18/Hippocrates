@@ -34,6 +34,8 @@ public class Controller {
              * Query search get request
              */
             get("/queries/:query/type/:type", (req, res) -> {
+                System.out.println(req.params(":query"));
+                System.out.println(req.params(":type"));
                 JSONObject answer = s.search(req.params(":query"),req.params(":type"));
                 System.out.println(answer);
                 return answer;

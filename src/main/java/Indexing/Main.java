@@ -8,11 +8,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
-
-        String path = PathManager.getCollectionPath(); // default path
-        if(args.length > 0)
-            path = args[0];
-
+        String path = PathManager.getInstance().getCollectionPath();
         i.index(path);
     }
 

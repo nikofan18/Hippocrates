@@ -40,7 +40,6 @@ function renderSearch(obj) {
         document.getElementById("noResults").style.display = 'block';
         document.getElementById("queryHeader").style.display = 'block';
         document.getElementById("foundHeader").style.display = 'none';
-        // document.getElementById('showMore').style.display = 'none';
     }
     else {
         document.getElementById("queryHeader").style.display = 'block';

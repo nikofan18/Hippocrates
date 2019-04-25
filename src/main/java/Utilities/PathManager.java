@@ -6,37 +6,45 @@ public class PathManager {
 
     // Fields
 
-    public static ArrayList<String> fileNames = new ArrayList<>();
-    private static String wordsPath = "WordLists";
-    private static String collectionPath = "src/main/resources/public/MedicalCollection";
-    private static String indexDirPath = "CollectionIndex";
-    private static int numOfFiles = -1;
+    public ArrayList<String> fileNames;
+    private final String wordsPath;
+    private final String collectionPath;
+    private final String indexDirPath;
+    private final int numOfFiles;
 
+    /*
+     * To create a singleton
+     */
+    private static PathManager instance = null;
+    public static PathManager getInstance() {
+        if(instance == null)
+            instance = new PathManager();
+        return instance;
+    }
+
+    /*
+     * Private constructor used in a singleton class
+     */
+    private PathManager() {
+        fileNames = new ArrayList<>();
+        wordsPath = "WordLists";
+        collectionPath = "src/main/resources/public/MedicalCollection";
+        indexDirPath = "CollectionIndex";
+        numOfFiles = -1;
+    }
 
     // Methods
 
-    public static String getIndexDirPath() { return indexDirPath; }
+    public String getIndexDirPath() { return indexDirPath; }
 
-    public static void setIndexDirPath(String indexDirPath) { PathManager.indexDirPath = indexDirPath; }
+    public String getWordsPath() { return wordsPath; }
 
-    public static String getWordsPath() { return wordsPath; }
-
-    public static void setWordsPath(String wordsPath) { PathManager.wordsPath = wordsPath; }
-
-    public static String getCollectionPath(){
+    public String getCollectionPath(){
        return collectionPath;
     }
 
-    public static void setCollectionPath(String collectionPath) {
-        PathManager.collectionPath = collectionPath;
-    }
-
-    public static int getNumOfFiles() {
+    public int getNumOfFiles() {
         return numOfFiles;
-    }
-
-    public static void setNumOfFiles(int numOfFiles) {
-        PathManager.numOfFiles = numOfFiles;
     }
 
 }

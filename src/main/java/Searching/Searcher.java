@@ -55,10 +55,14 @@ public class Searcher {
 
         /* Open index files */
         RandomAccessFile voc = new RandomAccessFile(
-                PathManager.getIndexDirPath() + "/VocabularyFile.txt", "rw"
+                PathManager.getInstance().getIndexDirPath() + "/VocabularyFile.txt", "rw"
         );
-        post = new RandomAccessFile(PathManager.getIndexDirPath() + "/PostingFile.txt", "rw");
-        doc = new RandomAccessFile(PathManager.getIndexDirPath() + "/DocumentsFile.txt", "rw");
+        post = new RandomAccessFile(
+                PathManager.getInstance().getIndexDirPath() + "/PostingFile.txt", "rw"
+        );
+        doc = new RandomAccessFile(
+                PathManager.getInstance().getIndexDirPath() + "/DocumentsFile.txt", "rw"
+        );
 
         /* Load vocabulary in memory */
         vocMap = new HashMap<>();
@@ -73,7 +77,7 @@ public class Searcher {
 
         /* Load important words of topics.xml file */
         topicImp = new HashSet<>(SharedUtilities.getInstance().parseWords(
-                PathManager.getWordsPath() + "/importantInTopics.txt")
+                PathManager.getInstance().getWordsPath() + "/importantInTopics.txt")
         );
 
         /* Initialize synonym map using the appropriate WordNet prolog file */

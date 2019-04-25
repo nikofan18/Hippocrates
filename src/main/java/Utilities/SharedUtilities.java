@@ -28,8 +28,8 @@ public class SharedUtilities {
      * Private constructor used in a singleton class
      */
     private SharedUtilities() throws IOException {
-        enSwSet = new HashSet<>(parseWords(PathManager.getWordsPath() + "/stopwordsEn.txt"));
-        grSwSet = new HashSet<>(parseWords(PathManager.getWordsPath() + "/stopwordsGr.txt"));
+        enSwSet = new HashSet<>(parseWords(PathManager.getInstance().getWordsPath() + "/stopwordsEn.txt"));
+        grSwSet = new HashSet<>(parseWords(PathManager.getInstance().getWordsPath() + "/stopwordsGr.txt"));
     }
 
     /*

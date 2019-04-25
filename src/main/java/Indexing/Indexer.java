@@ -68,7 +68,7 @@ public class Indexer {
         tfMul = new HashMap<>();
         piFileSuffixes = new LinkedList<>();
         Stemmer.Initialize();
-        piThreshold = 60000; /* TODO: find this */
+        piThreshold = 50000;
         piCurrentNum = -1;
 
         /* Weighting (tf multipliers) depending on tags */
@@ -89,17 +89,17 @@ public class Indexer {
      * from the collection given by path (it may be a single file or a directory)
      */
     public void index(String path) throws IOException {
-        new File(PathManager.getIndexDirPath()).mkdir();
-        new File(PathManager.getIndexDirPath() + "/DocumentsFile.txt").delete();
-        new File(PathManager.getIndexDirPath() + "/VocabularyFile.txt").delete();
-        new File(PathManager.getIndexDirPath() + "/PostingFile.txt").delete();
+        new File(PathManager.getInstance().getIndexDirPath()).mkdir();
+        new File(PathManager.getInstance().getIndexDirPath() + "/DocumentsFile.txt").delete();
+        new File(PathManager.getInstance().getIndexDirPath() + "/VocabularyFile.txt").delete();
+        new File(PathManager.getInstance().getIndexDirPath() + "/PostingFile.txt").delete();
         File f = new File(path);
         System.out.println("Indexing " + path + " ...");
         parseRecursively(f);
         if(tokenInfo.size() > 0)
             createPartialIndex(); // Create the last partial index
         createFinalIndex(); // Finalize index (do merging etc.)
-        System.out.println("Files Indexed: " + PathManager.fileNames);
+        System.out.println("Files Indexed: " + PathManager.getInstance().fileNames);
     }
 
     /*
@@ -208,7 +208,7 @@ public class Indexer {
     private void parseRecursively(File dir) throws IOException {
 
         if(dir.listFiles() == null) {
-            PathManager.fileNames.add(dir.getName());
+            PathManager.getInstance().fileNames.add(dir.getName());
             this.parseTags(dir.getAbsolutePath());
             return;
         }
@@ -216,17 +216,17 @@ public class Indexer {
         int fileCounter = 0;
         for (File fileEntry : dir.listFiles()) {
 
-            if (PathManager.getNumOfFiles() != -1){
-                if (fileCounter > PathManager.getNumOfFiles() - 1)
+            if (PathManager.getInstance().getNumOfFiles() != -1){
+                if (fileCounter > PathManager.getInstance().getNumOfFiles() - 1)
                     return;
             }
 
             if (fileEntry.isDirectory()) {
-                PathManager.fileNames.add(fileEntry.getName());
+                PathManager.getInstance().fileNames.add(fileEntry.getName());
                 parseRecursively(fileEntry);
             } else {
                 this.parseTags(fileEntry.getAbsolutePath());
-                PathManager.fileNames.add(fileEntry.getName());
+                PathManager.getInstance().fileNames.add(fileEntry.getName());
             }
 
             fileCounter++;
@@ -247,7 +247,8 @@ public class Indexer {
         DataOutputStream voc = new DataOutputStream(
                 new BufferedOutputStream(
                         new FileOutputStream(
-                                PathManager.getIndexDirPath() + "/VocabularyFile" + piCurrentNum + ".txt"
+                                PathManager.getInstance().getIndexDirPath()
+                                        + "/VocabularyFile" + piCurrentNum + ".txt"
                         )
                 )
         );
@@ -255,7 +256,8 @@ public class Indexer {
         DataOutputStream post = new DataOutputStream(
                 new BufferedOutputStream(
                         new FileOutputStream(
-                                PathManager.getIndexDirPath() + "/PostingFile" + piCurrentNum + ".txt"
+                                PathManager.getInstance().getIndexDirPath()
+                                        + "/PostingFile" + piCurrentNum + ".txt"
                         )
                 )
         );
@@ -289,7 +291,7 @@ public class Indexer {
         HashMap<String, Long> docBytes = new HashMap<>();
 
         RandomAccessFile docRAF = new RandomAccessFile(
-                PathManager.getIndexDirPath() + "/DocumentsFile.txt", "rw"
+                PathManager.getInstance().getIndexDirPath() + "/DocumentsFile.txt", "rw"
         );
         DataOutputStream doc = new DataOutputStream(
                 new BufferedOutputStream(
@@ -345,19 +347,23 @@ public class Indexer {
 
             suffix1 = piFileSuffixes.remove();
             voc1 = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/VocabularyFile" + suffix1 + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/VocabularyFile" + suffix1 + ".txt", "rw"
             );
             post1 = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/PostingFile" + suffix1 + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/PostingFile" + suffix1 + ".txt", "rw"
             );
 
 
             suffix2 = piFileSuffixes.remove();
             voc2 = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/VocabularyFile" + suffix2 + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/VocabularyFile" + suffix2 + ".txt", "rw"
             );
             post2 = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/PostingFile" + suffix2 + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/PostingFile" + suffix2 + ".txt", "rw"
             );
 
             if(piFileSuffixes.isEmpty()) {
@@ -368,7 +374,8 @@ public class Indexer {
             }
 
             vocMergedRAF = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/VocabularyFile" + mergedSuffix + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/VocabularyFile" + mergedSuffix + ".txt", "rw"
             );
             vocMerged = new DataOutputStream(
                     new BufferedOutputStream(
@@ -376,7 +383,8 @@ public class Indexer {
                     )
             );
             postMergedRAF = new RandomAccessFile(
-                    PathManager.getIndexDirPath() + "/PostingFile" + mergedSuffix + ".txt", "rw"
+                    PathManager.getInstance().getIndexDirPath()
+                            + "/PostingFile" + mergedSuffix + ".txt", "rw"
             );
             postMerged = new DataOutputStream(
                     new BufferedOutputStream(
@@ -535,10 +543,14 @@ public class Indexer {
             vocMerged.close(); postMerged.close();
 
             /* Delete merged files */
-            new File(PathManager.getIndexDirPath() + "/VocabularyFile" + suffix1 + ".txt").delete();
-            new File(PathManager.getIndexDirPath() + "/PostingFile" + suffix1 + ".txt").delete();
-            new File(PathManager.getIndexDirPath() + "/VocabularyFile" + suffix2 + ".txt").delete();
-            new File(PathManager.getIndexDirPath() + "/PostingFile" + suffix2 + ".txt").delete();
+            new File(PathManager.getInstance().getIndexDirPath()
+                    + "/VocabularyFile" + suffix1 + ".txt").delete();
+            new File(PathManager.getInstance().getIndexDirPath()
+                    + "/PostingFile" + suffix1 + ".txt").delete();
+            new File(PathManager.getInstance().getIndexDirPath()
+                    + "/VocabularyFile" + suffix2 + ".txt").delete();
+            new File(PathManager.getInstance().getIndexDirPath()
+                    + "/PostingFile" + suffix2 + ".txt").delete();
 
             /* Add merged file suffix to queue */
             piFileSuffixes.add(mergedSuffix);
@@ -558,15 +570,15 @@ public class Indexer {
         String docId;
 
         RandomAccessFile voc = new RandomAccessFile(
-                PathManager.getIndexDirPath() + "/VocabularyFile.txt", "rw"
+                PathManager.getInstance().getIndexDirPath() + "/VocabularyFile.txt", "rw"
         );
 
         RandomAccessFile post = new RandomAccessFile(
-                PathManager.getIndexDirPath() + "/PostingFile.txt", "rw"
+                PathManager.getInstance().getIndexDirPath() + "/PostingFile.txt", "rw"
         );
 
         RandomAccessFile doc = new RandomAccessFile(
-                PathManager.getIndexDirPath() + "/DocumentsFile.txt", "rw"
+                PathManager.getInstance().getIndexDirPath() + "/DocumentsFile.txt", "rw"
         );
 
         SharedUtilities.getInstance().docsNum = doc.readLong();
