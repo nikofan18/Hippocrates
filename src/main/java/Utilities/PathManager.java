@@ -10,7 +10,6 @@ public class PathManager {
     private final String wordsPath;
     private final String collectionPath;
     private final String indexDirPath;
-    private final String topicsPath;
     private final String evalFilesPath;
     private final int numOfFiles;
 
@@ -33,7 +32,6 @@ public class PathManager {
         collectionPath = "src/main/resources/public/MedicalCollection";
         indexDirPath = "CollectionIndex";
         evalFilesPath = "EvalFiles";
-        topicsPath = evalFilesPath + "/topics.xml";
 
         numOfFiles = -1;
     }
@@ -50,10 +48,6 @@ public class PathManager {
 
     public int getNumOfFiles() {
         return numOfFiles;
-    }
-
-    public String getTopicsPath() {
-        return topicsPath;
     }
 
     public String getEvalFilesPath() { return evalFilesPath; }

@@ -4,7 +4,7 @@ import Utilities.PathManager;
 
 import java.io.*;
 
-public class Main {
+public class IndexingMain {
 
     public static void main(String[] args) throws IOException {
         Indexer i = new Indexer();
