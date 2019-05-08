@@ -10,7 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 
 /*
- * A class that provides fields and methods to both Indexer and Searcher
+ * A class that provides fields and methods to Indexer, Searcher and Evaluator
  */
 public class SharedUtilities {
 

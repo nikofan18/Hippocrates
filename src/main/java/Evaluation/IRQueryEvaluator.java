@@ -2,6 +2,7 @@ package Evaluation;
 
 import Searching.Searcher;
 import Utilities.PathManager;
+import Utilities.SharedUtilities;
 import gr.uoc.csd.hy463.Topic;
 import gr.uoc.csd.hy463.TopicsReader;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -10,6 +11,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.TreeMap;
 
 public class IRQueryEvaluator {
@@ -54,29 +56,6 @@ public class IRQueryEvaluator {
         resultsHm = new HashMap<>();
         qrelsHm = new HashMap<>();
         maxRank = 1000;
-
-        /* Load relevant docs to topics as decided by experts */
-        System.out.println("Loading qrels.txt");
-        BufferedReader br = new BufferedReader(
-                new FileReader(PathManager.getInstance().getEvalFilesPath() + "/qrels.txt")
-        );
-        String line;
-        HashMap<String, Integer> hm = new HashMap<>();
-        Integer topicNo = 1, prevTopicNo = topicNo;
-        while ((line = br.readLine()) != null) {
-            String[] lineWords = line.split("\t");
-            String docId = lineWords[2];
-            Integer relevance = Integer.valueOf(lineWords[3]);
-            topicNo = Integer.valueOf(lineWords[0]);
-            if(!topicNo.equals(prevTopicNo)) {
-                qrelsHm.put(prevTopicNo, hm);
-                prevTopicNo = topicNo;
-                hm = new HashMap<>();
-            }
-            hm.put(docId, relevance);
-        }
-        qrelsHm.put(topicNo, hm);
-        br.close();
     }
 
     // Methods
@@ -90,12 +69,18 @@ public class IRQueryEvaluator {
             System.out.println("Creating results.txt");
             produceResults();
         }
+
+        System.out.println("Loading qrels.txt");
+        loadQrels();
+
         System.out.println("Computing measures");
         computeBpref();
         computeAvep();
 //        computeNdcg();
+
         System.out.println("Writing eval_results.txt");
         produceEvalResults();
+
         System.out.println("Finished.");
     }
 
@@ -115,9 +100,11 @@ public class IRQueryEvaluator {
                 PathManager.getInstance().getEvalFilesPath() + "/topics.xml"
         );
 
-        String runName = "FIRST_RUN";
+        String runName = "R0";
         for (Topic topic : topics) {
-            JSONObject answer = s.search(topic.getDescription(), topic.getType().toString());
+            JSONObject answer = s.search(
+                    topic.getDescription(), topic.getType().toString()
+            );
             TreeMap<Integer, MutablePair<String, Double>> tm = new TreeMap<>();
             Integer topicNo = topic.getNumber();
 
@@ -155,6 +142,62 @@ public class IRQueryEvaluator {
             resultsHm.put(topicNo, tm);
         }
         res.close();
+    }
+
+    /*
+     * Returns a hashset with all document ids from DocumentsFile.txt
+     */
+    private HashSet<String> findAllDocIds() throws IOException {
+
+        HashSet<String> ret = new HashSet<>();
+
+        RandomAccessFile doc = new RandomAccessFile(
+                PathManager.getInstance().getIndexDirPath() + "/DocumentsFile.txt", "rw"
+        );
+        doc.readLong(); // skip docs number
+
+        while(!SharedUtilities.getInstance().isEOFReached(doc)) {
+            ret.add(doc.readUTF()); // doc id
+            doc.readUTF(); // path
+            doc.readDouble(); // vec length
+        }
+
+        doc.close();
+
+        return ret;
+    }
+
+    /*
+     * Load relevant docs to topics as decided by experts (qrels.txt) into memory
+     * Note that judged documents that do not exist in corpus will be ignored
+     */
+    private void loadQrels() throws Exception {
+
+        HashSet<String> allDocIds = findAllDocIds(); // ids of all docs in corpus
+
+        BufferedReader br = new BufferedReader(
+                new FileReader(PathManager.getInstance().getEvalFilesPath() + "/qrels.txt")
+        );
+        String line;
+        HashMap<String, Integer> hm = new HashMap<>();
+        Integer topicNo = 1, prevTopicNo = topicNo;
+        while ((line = br.readLine()) != null) {
+            String[] lineWords = line.split("\t");
+            String docId = lineWords[2];
+            if(!allDocIds.contains(docId)) // ignore docs non-existed in corpus
+                continue;
+            Integer relevance = Integer.valueOf(lineWords[3]);
+            topicNo = Integer.valueOf(lineWords[0]);
+            if(!topicNo.equals(prevTopicNo)) {
+                qrelsHm.put(prevTopicNo, hm);
+                prevTopicNo = topicNo;
+                hm = new HashMap<>();
+            }
+            hm.put(docId, relevance);
+        }
+        qrelsHm.put(topicNo, hm);
+        br.close();
+
     }
 
     /*
@@ -197,13 +240,12 @@ public class IRQueryEvaluator {
             TreeMap<Integer, MutablePair<String, Double>> retrieved = resultsHm.get(topicNo);
 
             /* Compute R (# relevant judged), N (# non-relevant judged) */
-            int R = 0, N;
+            int R = 0;
             for(String docId : judged.keySet()) {
                 int relevance = judged.get(docId);
                 if(relevance != 0) // convert graded relevance to binary: 0 = {0}, 1 = {1, 2}
                     R++;
             }
-            N = judged.size() - R;
 
             /* Compute sum */
             double sum = 0.0;
@@ -215,7 +257,7 @@ public class IRQueryEvaluator {
                     if (judged.get(docId) == 0) // if it's irrelevant, count it to use this when a relevant is found
                         irrelevantNo++;
                     else // if it's relevant, update sum using the number of irrelevant docs until this time
-                        sum += (1 - (irrelevantNo / (double)Math.min(R, N)));
+                        sum += (1 - (irrelevantNo / (double) R));
                 }
             }
 
@@ -257,13 +299,13 @@ public class IRQueryEvaluator {
 
             /* Compute sum */
             double sum = 0.0;
-            int relativeNo = 0;
+            int relevant = 0;
             for(Integer cRank : condensed.keySet()) {
                 String docId = condensed.get(cRank);
 
                 if(judged.get(docId) != 0) { // relevant
-                    relativeNo++;
-                    sum += relativeNo / cRank;
+                    relevant++;
+                    sum += relevant / cRank;
                 }
             }
 
