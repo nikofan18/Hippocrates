@@ -9,10 +9,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.json.JSONObject;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.TreeMap;
+import java.util.*;
 
 public class IRQueryEvaluator {
 
@@ -76,10 +73,13 @@ public class IRQueryEvaluator {
         System.out.println("Computing measures");
         computeBpref();
         computeAvep();
-//        computeNdcg();
+        computeNdcg();
 
         System.out.println("Writing eval_results.txt");
         produceEvalResults();
+
+        System.out.println("Producing statistics");
+        produceStatistics();
 
         System.out.println("Finished.");
     }
@@ -156,7 +156,7 @@ public class IRQueryEvaluator {
         );
         doc.readLong(); // skip docs number
 
-        while(!SharedUtilities.getInstance().isEOFReached(doc)) {
+        while (!SharedUtilities.getInstance().isEOFReached(doc)) {
             ret.add(doc.readUTF()); // doc id
             doc.readUTF(); // path
             doc.readDouble(); // vec length
@@ -184,11 +184,11 @@ public class IRQueryEvaluator {
         while ((line = br.readLine()) != null) {
             String[] lineWords = line.split("\t");
             String docId = lineWords[2];
-            if(!allDocIds.contains(docId)) // ignore docs non-existed in corpus
+            if (!allDocIds.contains(docId)) // ignore docs non-existed in corpus
                 continue;
             Integer relevance = Integer.valueOf(lineWords[3]);
             topicNo = Integer.valueOf(lineWords[0]);
-            if(!topicNo.equals(prevTopicNo)) {
+            if (!topicNo.equals(prevTopicNo)) {
                 qrelsHm.put(prevTopicNo, hm);
                 prevTopicNo = topicNo;
                 hm = new HashMap<>();
@@ -218,7 +218,7 @@ public class IRQueryEvaluator {
             Double score = Double.valueOf(lineWords[4]);
             Integer rank = Integer.valueOf(lineWords[3]);
             topicNo = Integer.valueOf(lineWords[0]);
-            if(!topicNo.equals(prevTopicNo)) {
+            if (!topicNo.equals(prevTopicNo)) {
                 resultsHm.put(prevTopicNo, tm);
                 prevTopicNo = topicNo;
                 tm = new TreeMap<>();
@@ -235,25 +235,25 @@ public class IRQueryEvaluator {
      */
     private void computeBpref() {
 
-        for(Integer topicNo : qrelsHm.keySet()) {
+        for (Integer topicNo : qrelsHm.keySet()) {
             HashMap<String, Integer> judged = qrelsHm.get(topicNo);
             TreeMap<Integer, MutablePair<String, Double>> retrieved = resultsHm.get(topicNo);
 
             /* Compute R (# relevant judged), N (# non-relevant judged) */
             int R = 0;
-            for(String docId : judged.keySet()) {
+            for (String docId : judged.keySet()) {
                 int relevance = judged.get(docId);
-                if(relevance != 0) // convert graded relevance to binary: 0 = {0}, 1 = {1, 2}
+                if (relevance != 0) // convert graded relevance to binary: 0 = {0}, 1 = {1, 2}
                     R++;
             }
 
             /* Compute sum */
             double sum = 0.0;
             int irrelevantNo = 0;
-            for(Integer rank : retrieved.keySet()) { // for every retrieved doc
+            for (Integer rank : retrieved.keySet()) { // for every retrieved doc
                 String docId = retrieved.get(rank).getLeft();
 
-                if(judged.containsKey(docId)) { // if it's judged
+                if (judged.containsKey(docId)) { // if it's judged
                     if (judged.get(docId) == 0) // if it's irrelevant, count it to use this when a relevant is found
                         irrelevantNo++;
                     else // if it's relevant, update sum using the number of irrelevant docs until this time
@@ -262,7 +262,7 @@ public class IRQueryEvaluator {
             }
 
             /* Compute bpref */
-            Double bpref = (1 / (double)R) * sum;
+            Double bpref = (1 / (double) R) * sum;
             bprefHm.put(topicNo, bpref);
 
         }
@@ -274,24 +274,24 @@ public class IRQueryEvaluator {
      */
     private void computeAvep() {
 
-        for(Integer topicNo : qrelsHm.keySet()) {
+        for (Integer topicNo : qrelsHm.keySet()) {
             HashMap<String, Integer> judged = qrelsHm.get(topicNo);
             TreeMap<Integer, MutablePair<String, Double>> retrieved = resultsHm.get(topicNo);
 
             /* Compute R (# relevant judged) */
             int R = 0;
-            for(String docId : judged.keySet()) {
+            for (String docId : judged.keySet()) {
                 int relevance = judged.get(docId);
-                if(relevance != 0) // convert graded relevance to binary: 0 = {0}, 1 = {1, 2}
+                if (relevance != 0) // convert graded relevance to binary: 0 = {0}, 1 = {1, 2}
                     R++;
             }
 
             /* Create condensed list (exclude unjudged docs) */
             int condensedRank = 1;
             TreeMap<Integer, String> condensed = new TreeMap<>();
-            for(Integer rank : retrieved.keySet()) { // for every retrieved doc
+            for (Integer rank : retrieved.keySet()) { // for every retrieved doc
                 String docId = retrieved.get(rank).getLeft();
-                if(judged.containsKey(docId)) {
+                if (judged.containsKey(docId)) {
                     condensed.put(condensedRank, docId);
                     condensedRank++;
                 }
@@ -300,17 +300,17 @@ public class IRQueryEvaluator {
             /* Compute sum */
             double sum = 0.0;
             int relevant = 0;
-            for(Integer cRank : condensed.keySet()) {
+            for (Integer cRank : condensed.keySet()) {
                 String docId = condensed.get(cRank);
 
-                if(judged.get(docId) != 0) { // relevant
+                if (judged.get(docId) != 0) { // relevant
                     relevant++;
                     sum += relevant / cRank;
                 }
             }
 
             /* Compute AveP' */
-            Double avep = (1 / (double)R) * sum;
+            Double avep = (1 / (double) R) * sum;
             avepHm.put(topicNo, avep);
 
         }
@@ -321,7 +321,67 @@ public class IRQueryEvaluator {
      * Compute nDCG' measure for each topic and store measurements into ndcgHm
      */
     private void computeNdcg() {
-        /* TODO */
+        for (Integer topicNo : qrelsHm.keySet()) {
+            HashMap<String, Integer> judged = qrelsHm.get(topicNo);
+            TreeMap<Integer, MutablePair<String, Double>> retrieved = resultsHm.get(topicNo);
+
+            /* Create condensed list (exclude unjudged docs) */
+            int condensedRank = 1;
+            TreeMap<Integer, String> condensed = new TreeMap<>();
+            for (Integer rank : retrieved.keySet()) { // for every retrieved doc
+                String docId = retrieved.get(rank).getLeft();
+                if (judged.containsKey(docId)) {
+                    condensed.put(condensedRank, docId);
+                    condensedRank++;
+                }
+            }
+
+            /* Find DCG' from condensed list */
+            List<Integer> sortedCondensed = new ArrayList<>();
+            double dcg = 0.0;
+            for (Integer cRank : condensed.keySet()) {
+                String docId = condensed.get(cRank);
+                Integer relevance = judged.get(docId);
+                if (cRank == 1)
+                    dcg = relevance; // rel_1
+                else
+                    dcg += relevance / (Math.log(cRank + 1) / Math.log(2.0));
+                sortedCondensed.add(relevance);
+            }
+
+            /* Sort condensed list to compute IDCG' */
+            sortedCondensed.sort(
+                    (Integer i1, Integer i2) ->
+                    {
+                        if (i1 > i2)
+                            return 1;
+                        else if (i1 < i2)
+                            return -1;
+                        else
+                            return 0;
+                    });
+
+            /* Fing IDCG' from sortedCondensed list */
+            double idcg = 0.0;
+            int rank = 1;
+            Iterator<Integer> it = sortedCondensed.iterator();
+            while (it.hasNext()) {
+                Integer relevance = it.next();
+                if (rank == 1)
+                    idcg = relevance;
+                else
+                    idcg += relevance / (Math.log(rank + 1) / Math.log(2.0));
+                rank++;
+            }
+
+            /* Finally, compute nDCG' */
+            double ndcg = 0.0;
+            if (dcg != 0.0)
+                ndcg = dcg / idcg;
+            ndcgHm.put(topicNo, ndcg);
+
+        }
+
     }
 
     /*
@@ -339,11 +399,18 @@ public class IRQueryEvaluator {
             er.write(bprefHm.get(topicNum).toString());
             er.write("\t");
             er.write(avepHm.get(topicNum).toString());
-            //er.write("\t");
-            //er.write(ndcgHm.get(topicNum).toString());
+            er.write("\t");
+            er.write(ndcgHm.get(topicNum).toString());
             er.write("\n");
         }
         er.close();
+    }
+
+    /*
+     * Computes some statistics from the evaluation results
+     */
+    private void produceStatistics() {
+        // TODO
     }
 
 }
