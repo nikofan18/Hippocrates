@@ -8,6 +8,7 @@ import gr.uoc.csd.hy463.TopicsReader;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.json.JSONObject;
 
+import javax.xml.crypto.dom.DOMCryptoContext;
 import java.io.*;
 import java.util.*;
 
@@ -57,7 +58,10 @@ public class IRQueryEvaluator {
 
     // Methods
 
-    /* TODO: explain what this does when its implementation finishes */
+    /*
+     * Produce results to topic queries, compare them with judged results,
+     * compute the three measures and produce statistics
+     */
     public void evaluate(boolean isResultsFileCreated) throws Exception {
         if (isResultsFileCreated) {
             System.out.println("Loading results.txt");
@@ -353,9 +357,9 @@ public class IRQueryEvaluator {
             sortedCondensed.sort(
                     (Integer i1, Integer i2) ->
                     {
-                        if (i1 > i2)
+                        if (i1 < i2)
                             return 1;
-                        else if (i1 < i2)
+                        else if (i1 > i2)
                             return -1;
                         else
                             return 0;
@@ -376,7 +380,7 @@ public class IRQueryEvaluator {
 
             /* Finally, compute nDCG' */
             double ndcg = 0.0;
-            if (dcg != 0.0)
+            if (dcg != 0.0) // means that idcg != 0.0 too
                 ndcg = dcg / idcg;
             ndcgHm.put(topicNo, ndcg);
 
@@ -407,10 +411,116 @@ public class IRQueryEvaluator {
     }
 
     /*
-     * Computes some statistics from the evaluation results
+     * Computes and prints some statistics from the evaluation results
      */
     private void produceStatistics() {
-        // TODO
+
+        double maxBpref = bprefHm.get(1), minBpref = bprefHm.get(1), medianBpref, avgBpref = 0.0;
+        double maxAvep = avepHm.get(1), minAvep = avepHm.get(1), medianAvep, avgAvep = 0.0;
+        double maxNdcg = ndcgHm.get(1), minNdcg = ndcgHm.get(1), medianNdcg, avgNdcg = 0.0;
+        int maxBprefTopic = 1, minBprefTopic = 1;
+        int maxAvepTopic = 1, minAvepTopic = 1;
+        int maxNdcgTopic = 1, minNdcgTopic = 1;
+        int topicsNumber = 0;
+        TreeMap<Integer, Double> sumsHm = new TreeMap<>(); // the sum of the three measures for every topic
+        ArrayList<Double> sortedBprefList = new ArrayList<>();
+        ArrayList<Double> sortedAvepList = new ArrayList<>();
+        ArrayList<Double> sortedNdcgList = new ArrayList<>();
+        for(Integer topicNo : bprefHm.keySet()) {
+
+            topicsNumber++;
+
+            double bpref = bprefHm.get(topicNo);
+            double avep = avepHm.get(topicNo);
+            double ndcg = ndcgHm.get(topicNo);
+
+            /* Compute max values */
+            if(bpref > maxBpref) {
+                maxBpref = bpref;
+                maxBprefTopic = topicNo;
+            }
+            if(avep > maxAvep) {
+                maxAvep = avep;
+                maxAvepTopic = topicNo;
+            }
+            if(ndcg > maxNdcg) {
+                maxNdcg = ndcg;
+                maxNdcgTopic = topicNo;
+            }
+
+            /* Compute min values */
+            if(bpref < minBpref) {
+                minBpref = bpref;
+                minBprefTopic = topicNo;
+            }
+            if(avep < minAvep) {
+                minAvep = avep;
+                minAvepTopic = topicNo;
+            }
+            if(ndcg < minNdcg) {
+                minNdcg = ndcg;
+                minNdcgTopic = topicNo;
+            }
+
+            /* For average computation */
+            avgBpref += bpref;
+            avgAvep += avep;
+            avgNdcg += ndcg;
+
+            /* For median computation */
+            sortedBprefList.add(bpref);
+            sortedAvepList.add(avep);
+            sortedNdcgList.add(ndcg);
+
+            /* Sum of measures */
+            sumsHm.put(topicNo, bpref + avep + ndcg);
+
+        }
+
+        /* Averages */
+        avgBpref /= topicsNumber;
+        avgAvep /= topicsNumber;
+        avgNdcg /= topicsNumber;
+
+        /* Medians */
+        Collections.sort(sortedBprefList);
+        Collections.sort(sortedAvepList);
+        Collections.sort(sortedNdcgList);
+        if(topicsNumber % 2 == 0) {
+            medianBpref = sortedBprefList.get((topicsNumber / 2) - 1) + sortedBprefList.get(topicsNumber / 2);
+            medianAvep = sortedAvepList.get((topicsNumber / 2) - 1) + sortedAvepList.get(topicsNumber / 2);
+            medianNdcg = sortedNdcgList.get((topicsNumber / 2) - 1) + sortedNdcgList.get(topicsNumber / 2);
+        } else {
+            medianBpref = sortedBprefList.get(topicsNumber / 2); // floor value
+            medianAvep = sortedAvepList.get(topicsNumber / 2); // floor value
+            medianNdcg = sortedNdcgList.get(topicsNumber / 2); // floor value
+        }
+
+        /* Print statistics */
+        System.out.println("=== Evaluation Statistics ===");
+
+        System.out.println("Max bpref topic: " + maxBprefTopic + " (" + maxBpref + ")");
+        System.out.println("Max AveP' topic: " + maxAvepTopic + " (" + maxAvep + ")");
+        System.out.println("Max nDCG' topic: " + maxNdcgTopic + " (" + maxNdcg + ")");
+
+        System.out.println("Min bpref topic: " + minBprefTopic + " (" + minBpref + ")");
+        System.out.println("Min AveP' topic: " + minAvepTopic + " (" + minAvep + ")");
+        System.out.println("Min nDCG' topic: " + minNdcgTopic + " (" + minNdcg + ")");
+
+        System.out.println("bpref average: " + avgBpref);
+        System.out.println("AveP' average: " + avgAvep);
+        System.out.println("nDCG' average: " + avgNdcg);
+
+        System.out.println("bpref median: " + medianBpref);
+        System.out.println("AveP' median: " + medianAvep);
+        System.out.println("nDCG' median: " + medianNdcg);
+
+        System.out.println("Sum of measures for each topic:");
+        for(Integer topicNo : sumsHm.keySet())
+            System.out.println(topicNo + ": " + sumsHm.get(topicNo));
+
+        System.out.println("=============================");
+
     }
 
 }
