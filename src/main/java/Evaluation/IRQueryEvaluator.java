@@ -8,7 +8,6 @@ import gr.uoc.csd.hy463.TopicsReader;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.json.JSONObject;
 
-import javax.xml.crypto.dom.DOMCryptoContext;
 import java.io.*;
 import java.util.*;
 
@@ -47,7 +46,7 @@ public class IRQueryEvaluator {
     /*
      * Initialize things ..
      */
-    public IRQueryEvaluator() throws Exception {
+    public IRQueryEvaluator() {
         bprefHm = new HashMap<>();
         avepHm = new HashMap<>();
         ndcgHm = new HashMap<>();
@@ -309,7 +308,7 @@ public class IRQueryEvaluator {
 
                 if (judged.get(docId) != 0) { // relevant
                     relevant++;
-                    sum += relevant / cRank;
+                    sum += relevant / (double)cRank;
                 }
             }
 

@@ -246,9 +246,9 @@ public class Searcher {
                 if(isTypeGiven) {
                     if(!topicImp.contains(currentToken))
                         continue; // keep only topic important words (medical terms, diseases etc.)
-                    String[] synonyms = synMap.getSynonyms(currentToken);
-                    if(synonyms.length != 0)
-                        ret.add(Stemmer.Stem(synonyms[0])); // add one synonym after doing stemming on it
+//                    String[] synonyms = synMap.getSynonyms(currentToken);
+//                    if(synonyms.length != 0)
+//                        ret.add(Stemmer.Stem(synonyms[0])); // add one synonym after doing stemming on it
                 }
 
                 currentToken = Stemmer.Stem(currentToken); // do stemming
